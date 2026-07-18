@@ -46,9 +46,10 @@ fi
 echo "🚀  Dashboard sur ${URL}"
 "${EXECUTABLE}" &
 PID=$!
+
+# Tue le binaire quand on fait Ctrl+C ou ferme le terminal
+trap "kill -9 ${PID} 2>/dev/null; exit 0" INT TERM EXIT
+
 sleep 2
 xdg-open "${URL}" >/dev/null 2>&1 || true
-
-# Tue le binaire quand on fait Ctrl+C
-trap "kill ${PID} 2>/dev/null; exit" INT TERM
 wait $PID
