@@ -202,38 +202,3 @@ impl DashboardSummary {
     }
 }
 
-// ─── Material Summary ─────────────────────────────────────────
-
-#[derive(Debug, Clone, Serialize)]
-pub struct MaterialSummary {
-    pub name: String,
-    pub type_id: i64,
-    pub total_quantity: i64,
-    pub unit_price_jita: f64,
-    pub total_cost_jita: f64,
-}
-
-impl MaterialSummary {
-    pub fn from_bpos(bpos: &[BpoEntry]) -> Vec<Self> {
-        let mut mats: HashMap<i64, (String, i64)> = HashMap::new();
-        for bpo in bpos {
-            for mat in &bpo.materials {
-                let entry = mats.entry(mat.typeid).or_insert((mat.name.clone(), 0));
-                entry.1 += mat.quantity * bpo.product_qty;
-            }
-        }
-
-        let mut result: Vec<Self> = mats.into_iter().map(|(tid, (name, qty))| {
-            Self {
-                name,
-                type_id: tid,
-                total_quantity: qty,
-                unit_price_jita: 0.0,
-                total_cost_jita: 0.0,
-            }
-        }).collect();
-
-        result.sort_by(|a, b| b.total_cost_jita.partial_cmp(&a.total_cost_jita).unwrap_or(std::cmp::Ordering::Equal));
-        result
-    }
-}

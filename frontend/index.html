@@ -310,7 +310,6 @@ tr:hover { background: var(--surface2); }
   <div class="tab" data-page="summary" onclick="switchTab('summary')">📊 Résumé</div>
   <div class="tab" data-page="ranking" onclick="switchTab('ranking')">📈 Classement</div>
   <div class="tab" data-page="improvements" onclick="switchTab('improvements')">🔧 ME/TE</div>
-  <div class="tab" data-page="materials" onclick="switchTab('materials')">📦 Matériaux</div>
 </div>
 
 <div class="content">
@@ -357,7 +356,6 @@ tr:hover { background: var(--surface2); }
   <div class="page" id="page-improvements"><div id="improvementsContent"></div></div>
 
   <!-- MATERIALS -->
-  <div class="page" id="page-materials"><div id="materialsContent"></div></div>
 </div>
 
 <!-- Add Character Modal -->
@@ -448,7 +446,6 @@ function switchTab(page) {
   if (page === 'summary') loadSummary();
   if (page === 'ranking') loadRanking();
   if (page === 'improvements') loadImprovements();
-  if (page === 'materials') loadMaterials();
 }
 
 let ssoConfigured = false;
@@ -750,19 +747,6 @@ async function loadImprovements() {
   document.getElementById('improvementsContent').innerHTML = html;
 }
 
-async function loadMaterials() {
-  const resp = await fetch('/api/materials');
-  const mats = await resp.json();
-  if (mats.length === 0) { document.getElementById('materialsContent').innerHTML = '<div class="empty"><h2>Aucune donnée</h2></div>'; return; }
-  let html = '<p style="margin-bottom:12px;font-size:13px;color:var(--text2)">Quantité totale = somme sur tous les BPOs (qté par run × qté de produit par run). "Utilisé par" liste chaque BPO avec la quantité nécessaire par run de fabrication.</p>';
-  html += '<table><thead><tr><th>Matériau</th><th>Qté totale (tous BPO)</th><th>Utilisé par (BPO : qté/run)</th></tr></thead><tbody>';
-  for (const m of mats) {
-    const usedBy = (m.used_by || []).map(u => esc(u.bp_name) + ' : ' + fmtInt(u.quantity) + '/run').join('<br>');
-    html += '<tr><td><strong>' + esc(m.name) + '</strong></td><td>' + fmtInt(m.total_quantity) + '</td><td style="font-size:12px;color:var(--text2)">' + usedBy + '</td></tr>';
-  }
-  html += '</tbody></table>';
-  document.getElementById('materialsContent').innerHTML = html;
-}
 
 let refreshTimerInterval = null;
 async function refreshData() {
