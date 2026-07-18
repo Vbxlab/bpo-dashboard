@@ -180,8 +180,9 @@ pub async fn api_summary(State(state): State<AppState>) -> Json<serde_json::Valu
                     for hub in &hubs {
                         let hub_lower = hub.to_lowercase();
                         let revenue = obj.get("product_prices").and_then(|p| p.get(hub)).and_then(|v| v.as_f64()).unwrap_or(0.0);
+                        let qty = obj.get("product_qty").and_then(|v| v.as_i64()).unwrap_or(1) as f64;
                         let cost = obj.get("mat_costs").and_then(|p| p.get(hub)).and_then(|v| v.as_f64()).unwrap_or(0.0);
-                        obj.insert(format!("profit_{}", &hub_lower), serde_json::Value::from(revenue - cost));
+                        obj.insert(format!("profit_{}", &hub_lower), serde_json::Value::from(revenue * qty - cost));
                     }
                 }
             }
