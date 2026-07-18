@@ -461,6 +461,8 @@ pub async fn api_sso_callback(
     let verify: serde_json::Value = verify_resp.json().await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Verify parse error: {}", e)))?;
 
+    eprintln!("DEBUG verify response: {}", serde_json::to_string_pretty(&verify).unwrap_or_default());
+
     // Extract character ID from subject like "CHARACTER:EVE:92304258"
     let subject = verify.get("sub").and_then(|v| v.as_str())
         .or_else(|| verify.get("Sub").and_then(|v| v.as_str()))
