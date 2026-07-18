@@ -232,10 +232,10 @@ pub async fn api_characters(State(state): State<AppState>) -> Json<Vec<serde_jso
         })
     }).collect();
     // Include default_sso flag so frontend knows if one-click is available
-    Json(vec![serde_json::json!({
+    Json(serde_json::json!({
         "default_sso_configured": has_default_sso,
         "characters": chars,
-    })])
+    }))
 }
 
 pub async fn api_delete_character(
