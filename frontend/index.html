@@ -313,6 +313,7 @@ tr:hover { background: var(--surface2); }
       </select>
       <select id="rankingSort" onchange="loadRanking()">
         <option value="profit">Trier par profit</option>
+        <option value="price">Trier par prix de vente</option>
         <option value="margin">Trier par marge %</option>
       </select>
     </div>
@@ -632,15 +633,18 @@ async function loadSummary() {
     const profit = revenue - invest;
     html += `<div class="stat-card"><h3>${hub}</h3><div class="value ${profit>0?'profit':'loss'}">${fmt(profit)}</div><div class="sub">${profitable}/${s.total_bpos} profitable · Investissement: ${fmt(invest)}</div></div>`;
   }
-  html += '</div><div class="top-sections"><div class="top-section"><h3>🏆 Top 5 profits (Dodixie)</h3>';
+  let summaryHub = window._summaryHub || 'Dodixie';
+  let hubLower = summaryHub.toLowerCase();
+  html += '</div><div style="margin-bottom:12px"><label style="font-size:12px;color:var(--text2)">Hub pour top/flop : </label><select id="summaryHubSelect" onchange="window._summaryHub=this.value;loadSummary()" style="padding:4px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text)"><option value="Jita"'+(summaryHub=='Jita'?' selected':'')+'>'+"Jita"+'</option><option value="Amarr"'+(summaryHub=='Amarr'?' selected':'')+'>'+"Amarr"+'</option><option value="Dodixie"'+(summaryHub=='Dodixie'?' selected':'')+'>'+"Dodixie"+'</option><option value="Rens"'+(summaryHub=='Rens'?' selected':'')+'>'+"Rens"+'</option></select></div>';
+  html += '<div class="top-sections"><div class="top-section"><h3>🏆 Top 5 profits ('+summaryHub+')</h3>';
   for (const b of s.top_profits) {
-    const p = b.profit?.Dodixie || b.profit_dodixie || 0;
-    html += `<div>${esc(b.bp_name)}: <span class="profit-cell">${fmt(p)}</span></div>`;
+    const p = b['profit_'+hubLower] || 0;
+    html += '<div>'+esc(b.bp_name)+': <span class="profit-cell">'+fmt(p)+'</span></div>';
   }
-  html += '</div><div class="top-section"><h3>💀 Top 5 pertes (Dodixie)</h3>';
+  html += '</div><div class="top-section"><h3>💀 Top 5 pertes ('+summaryHub+')</h3>';
   for (const b of s.worst_losses) {
-    const p = b.profit?.Dodixie || b.profit_dodixie || 0;
-    html += `<div>${esc(b.bp_name)}: <span class="loss-cell">${fmt(p)}</span></div>`;
+    const p = b['profit_'+hubLower] || 0;
+    html += '<div>'+esc(b.bp_name)+': <span class="loss-cell">'+fmt(p)+'</span></div>';
   }
   html += '</div></div>';
   document.getElementById('summaryContent').innerHTML = html;
@@ -683,16 +687,21 @@ async function loadMaterials() {
   const resp = await fetch('/api/materials');
   const mats = await resp.json();
   if (mats.length === 0) { document.getElementById('materialsContent').innerHTML = '<div class="empty"><h2>Aucune donnée</h2></div>'; return; }
-  let html = `<table><thead><tr><th>Matériau</th><th>Qté totale</th><th>Prix unitaire Jita</th><th>Coût total Jita</th></tr></thead><tbody>`;
-  for (const m of mats) { html += `<tr><td>${esc(m.name)}</td><td>${fmtInt(m.total_quantity)}</td><td>${fmt(m.unit_price_jita)}</td><td>${fmt(m.total_cost_jita)}</td></tr>`; }
+  let html = '<table><thead><tr><th>Matériau</th><th>Qté totale</th><th>Utilisé par (BPO : qté/run)</th></tr></thead><tbody>';
+  for (const m of mats) {
+    const usedBy = (m.used_by || []).map(u => esc(u.bp_name) + ' (' + fmtInt(u.quantity) + ')').join(', ');
+    html += '<tr><td><strong>' + esc(m.name) + '</strong></td><td>' + fmtInt(m.total_quantity) + '</td><td style="font-size:12px;color:var(--text2)">' + usedBy + '</td></tr>';
+  }
   html += '</tbody></table>';
   document.getElementById('materialsContent').innerHTML = html;
 }
 
 async function refreshData() {
   const btn = document.getElementById('refreshBtn');
+  const updateEl = document.getElementById('lastUpdate');
   btn.disabled = true;
-  btn.textContent = '⏳ Rafraîchissement...';
+  btn.textContent = '⏳ Chargement...';
+  updateEl.textContent = '⏳ Récupération des BPO et prix marché...';
   try {
     const body = currentChar ? { char_id: currentChar } : {};
     const resp = await fetch('/api/refresh', {
@@ -701,11 +710,13 @@ async function refreshData() {
       body: JSON.stringify(body),
     });
     const result = await resp.json();
-    if (result.status === 'already_refreshing') { alert('Rafraîchissement déjà en cours...'); return; }
+    if (result.status === 'already_refreshing') { updateEl.textContent = '⚠️ Rafraîchissement déjà en cours...'; return; }
+    updateEl.textContent = '⏳ Traitement des données...';
     await loadCharacters();
     await searchBpos();
-    document.getElementById('lastUpdate').textContent = '✅ Mis à jour';
-  } catch (e) { alert('Erreur: ' + e.message); }
+    const bpoCount = bposCache.length;
+    updateEl.textContent = '✅ ' + bpoCount + ' BPO mis à jour';
+  } catch (e) { updateEl.textContent = '❌ Erreur: ' + e.message; alert('Erreur: ' + e.message); }
   finally { btn.disabled = false; btn.textContent = '🔄 Rafraîchir'; }
 }
 

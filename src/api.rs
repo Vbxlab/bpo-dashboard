@@ -23,7 +23,6 @@ pub struct AppStateInner {
 #[derive(Deserialize)]
 pub struct SearchQuery {
     pub q: Option<String>,
-    #[allow(dead_code)]
     pub hub: Option<String>,
     pub me_min: Option<i32>,
     pub me_max: Option<i32>,
@@ -91,9 +90,13 @@ pub async fn api_bpos(
             if let Some(te_max) = params.te_max { if bpo.te > te_max { continue; } }
 
             if params.profit_only.unwrap_or(false) {
-                let hubs = &["Jita", "Amarr", "Dodixie", "Rens"];
-                let any_profit = hubs.iter().any(|h| bpo.profit(h) > 0.0);
-                if !any_profit { continue; }
+                if let Some(ref hub) = params.hub {
+                    if bpo.profit(hub) <= 0.0 { continue; }
+                } else {
+                    let hubs = &["Jita", "Amarr", "Dodixie", "Rens"];
+                    let any_profit = hubs.iter().any(|h| bpo.profit(h) > 0.0);
+                    if !any_profit { continue; }
+                }
             }
 
             let (best_hub, best_profit) = bpo.best_hub();
@@ -135,6 +138,12 @@ pub async fn api_bpos(
         let cmp = match sort_key {
             "profit" => a.get("best_profit").and_then(|v| v.as_f64()).unwrap_or(0.0)
                 .partial_cmp(&b.get("best_profit").and_then(|v| v.as_f64()).unwrap_or(0.0)),
+            "price" => {
+                let hub = params.hub.as_deref().unwrap_or("Jita").to_lowercase();
+                let key = format!("price_{}", hub);
+                a.get(&key).and_then(|v| v.as_f64()).unwrap_or(0.0)
+                    .partial_cmp(&b.get(&key).and_then(|v| v.as_f64()).unwrap_or(0.0))
+            }
             "margin" => a.get("margin_dodixie").and_then(|v| v.as_f64()).unwrap_or(0.0)
                 .partial_cmp(&b.get("margin_dodixie").and_then(|v| v.as_f64()).unwrap_or(0.0)),
             "me" => Some(a.get("me").and_then(|v| v.as_i64()).unwrap_or(0)
@@ -160,7 +169,25 @@ pub async fn api_summary(State(state): State<AppState>) -> Json<serde_json::Valu
         all_bpos.extend(data.bpos.clone());
     }
     let summary = DashboardSummary::from_bpos(&all_bpos);
-    Json(serde_json::to_value(summary).unwrap_or_default())
+    // Convert to JSON and add computed profit fields for each hub
+    let mut json = serde_json::to_value(&summary).unwrap_or_default();
+    // Enrich top_profits and worst_losses with computed profit values
+    let hubs = ["Jita", "Amarr", "Dodixie", "Rens"];
+    for key in ["top_profits", "worst_losses"] {
+        if let Some(arr) = json.get_mut(key).and_then(|v| v.as_array_mut()) {
+            for item in arr.iter_mut() {
+                if let Some(obj) = item.as_object_mut() {
+                    for hub in &hubs {
+                        let hub_lower = hub.to_lowercase();
+                        let revenue = obj.get("product_prices").and_then(|p| p.get(hub_lower)).and_then(|v| v.as_f64()).unwrap_or(0.0);
+                        let cost = obj.get("mat_costs").and_then(|p| p.get(hub_lower)).and_then(|v| v.as_f64()).unwrap_or(0.0);
+                        obj.insert(format!("profit_{}", hub_lower), serde_json::Value::from(revenue - cost));
+                    }
+                }
+            }
+        }
+    }
+    Json(json)
 }
 
 // ─── API: Materials ────────────────────────────────────────────
@@ -171,16 +198,30 @@ pub async fn api_materials(State(state): State<AppState>) -> Json<Vec<serde_json
     for data in state.data.values() {
         all_bpos.extend(data.bpos.clone());
     }
-    let mats = MaterialSummary::from_bpos(&all_bpos);
-    let result: Vec<serde_json::Value> = mats.iter().map(|m| {
+    // Build materials with BPO parent info
+    let mut mat_map: std::collections::HashMap<i64, (String, i64, Vec<(String, i64)>)> = std::collections::HashMap::new();
+    for bpo in &all_bpos {
+        for mat in &bpo.materials {
+            let entry = mat_map.entry(mat.typeid).or_insert((mat.name.clone(), 0, Vec::new()));
+            entry.1 += mat.quantity * bpo.product_qty;
+            entry.2.push((bpo.bp_name.clone(), mat.quantity));
+        }
+    }
+    let mut result: Vec<serde_json::Value> = mat_map.iter().map(|(tid, (name, total_qty, bpo_list))| {
+        let bpos_using: Vec<serde_json::Value> = bpo_list.iter().map(|(bp_name, qty)| {
+            serde_json::json!({"bp_name": bp_name, "quantity": qty})
+        }).collect();
         serde_json::json!({
-            "name": m.name,
-            "type_id": m.type_id,
-            "total_quantity": m.total_quantity,
-            "unit_price_jita": m.unit_price_jita,
-            "total_cost_jita": m.total_cost_jita,
+            "name": name,
+            "type_id": tid,
+            "total_quantity": total_qty,
+            "used_by": bpos_using,
         })
     }).collect();
+    result.sort_by(|a, b| {
+        b.get("total_quantity").and_then(|v| v.as_i64()).unwrap_or(0)
+            .cmp(&a.get("total_quantity").and_then(|v| v.as_i64()).unwrap_or(0))
+    });
     Json(result)
 }
 
@@ -460,8 +501,6 @@ pub async fn api_sso_callback(
 
     let verify: serde_json::Value = verify_resp.json().await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Verify parse error: {}", e)))?;
-
-    eprintln!("DEBUG verify response: {}", serde_json::to_string_pretty(&verify).unwrap_or_default());
 
     // Extract character ID — EVE SSO v2 uses "CharacterID"
     let char_id: i64 = verify.get("CharacterID").and_then(|v| v.as_i64())
