@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BPO Dashboard</title>
+<style>
+:root {
+  --bg: #0f111a;
+  --surface: #1a1d2e;
+  --surface2: #242840;
+  --border: #2e3354;
+  --text: #e0e0f0;
+  --text2: #8888aa;
+  --accent: #6c7bf0;
+  --accent2: #4a5ad0;
+  --profit: #35d07a;
+  --loss: #e04848;
+  --warning: #f0a030;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+.header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.header h1 { font-size: 18px; font-weight: 600; }
+.header h1 span { color: var(--accent); }
+.header-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.char-selector { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.char-chip {
+  padding: 4px 12px;
+  border-radius: 12px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.char-chip.active { border-color: var(--accent); background: var(--accent2); color: #fff; }
+.char-chip:hover { border-color: var(--accent); }
+.char-chip .delete-char {
+  color: var(--loss);
+  cursor: pointer;
+  font-weight: bold;
+  margin-left: 4px;
+  opacity: 0.6;
+}
+.char-chip .delete-char:hover { opacity: 1; }
+.btn {
+  padding: 8px 16px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+.btn:hover { background: var(--accent2); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-sm { padding: 5px 12px; font-size: 12px; }
+.btn-outline { background: transparent; border: 1px solid var(--accent); color: var(--accent); }
+.btn-outline:hover { background: var(--accent); color: #fff; }
+.btn-danger { background: #8b2020; }
+.btn-danger:hover { background: #a03030; }
+.tabs {
+  display: flex;
+  gap: 0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  overflow-x: auto;
+}
+.tab {
+  padding: 10px 20px;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 14px;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+  user-select: none;
+  white-space: nowrap;
+}
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.content { padding: 20px 24px; }
+.page { display: none; }
+.page.active { display: block; }
+.search-bar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.search-bar input[type="text"] {
+  flex: 1;
+  min-width: 200px;
+  padding: 10px 14px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 14px;
+  outline: none;
+}
+.search-bar input[type="text"]:focus { border-color: var(--accent); }
+.search-bar select, .search-bar input[type="number"] {
+  padding: 8px 12px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+}
+.search-bar select { min-width: 120px; }
+.search-bar input[type="number"] { width: 70px; }
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+}
+.stat-card h3 { font-size: 12px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+.stat-card .value { font-size: 28px; font-weight: 700; }
+.stat-card .value.profit { color: var(--profit); }
+.stat-card .value.loss { color: var(--loss); }
+.stat-card .value.accent { color: var(--accent); }
+.stat-card .sub { font-size: 12px; color: var(--text2); margin-top: 4px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th {
+  background: var(--surface2);
+  color: var(--text2);
+  padding: 10px 12px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+th:hover { color: var(--accent); }
+td {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+tr:hover { background: var(--surface2); }
+.profit-cell { color: var(--profit); }
+.loss-cell { color: var(--loss); }
+.best-hub { font-weight: 600; color: var(--accent); }
+.me-low { color: var(--warning); font-weight: 600; }
+.me-ok { color: var(--profit); }
+.te-low { color: var(--warning); font-weight: 600; }
+.te-ok { color: var(--profit); }
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.badge-profit { background: #0d2818; color: var(--profit); }
+.badge-loss { background: #280d0d; color: var(--loss); }
+.badge-warning { background: #2a1a06; color: var(--warning); }
+.top-sections {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.top-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+}
+.top-section h3 { font-size: 14px; margin-bottom: 12px; color: var(--text2); }
+.empty { text-align: center; padding: 60px 20px; color: var(--text2); }
+.empty h2 { margin-bottom: 12px; font-size: 18px; color: var(--text); }
+.empty p { margin-bottom: 20px; }
+.tag { font-size: 10px; padding: 2px 6px; border-radius: 3px; margin-left: 6px; }
+.tag-me { background: #2a1a06; color: var(--warning); }
+.tag-te { background: #1a062a; color: #a070f0; }
+
+/* Modal */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 1000;
+  justify-content: center;
+  align-items: center;
+}
+.modal-overlay.active { display: flex; }
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.modal h2 { margin-bottom: 16px; font-size: 18px; }
+.modal label { display: block; margin-bottom: 4px; color: var(--text2); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+.modal input[type="text"], .modal input[type="url"] {
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 14px;
+  margin-bottom: 16px;
+  outline: none;
+}
+.modal input:focus { border-color: var(--accent); }
+.modal .actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 8px; }
+.modal .sso-link {
+  display: none;
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--surface2);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  word-break: break-all;
+}
+.modal .sso-link.visible { display: block; }
+.modal .sso-link a { color: var(--accent); }
+.modal .info { font-size: 13px; color: var(--text2); margin-bottom: 16px; line-height: 1.5; }
+.modal .callback-preview { font-size: 11px; color: var(--text2); margin-top: -8px; margin-bottom: 16px; font-style: italic; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🛡️ <span>BPO</span> Dashboard</h1>
+  <div class="header-right">
+    <div class="char-selector" id="charSelector"></div>
+    <button class="btn btn-sm btn-outline" onclick="showAddCharacter()">+ Personnage</button>
+    <button class="btn btn-sm" id="refreshBtn" onclick="refreshData()">🔄 Rafraîchir</button>
+    <span id="lastUpdate" style="font-size:12px;color:var(--text2)"></span>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" data-page="search" onclick="switchTab('search')">🔍 Recherche</div>
+  <div class="tab" data-page="summary" onclick="switchTab('summary')">📊 Résumé</div>
+  <div class="tab" data-page="ranking" onclick="switchTab('ranking')">📈 Classement</div>
+  <div class="tab" data-page="improvements" onclick="switchTab('improvements')">🔧 ME/TE</div>
+  <div class="tab" data-page="materials" onclick="switchTab('materials')">📦 Matériaux</div>
+</div>
+
+<div class="content">
+  <!-- SEARCH -->
+  <div class="page active" id="page-search">
+    <div class="search-bar">
+      <input type="text" id="searchInput" placeholder="Rechercher un BPO ou produit..." oninput="searchBpos()">
+      <select id="hubFilter" onchange="searchBpos()">
+        <option value="all">Tous les hubs</option>
+        <option value="Jita">Jita</option>
+        <option value="Amarr">Amarr</option>
+        <option value="Dodixie">Dodixie</option>
+        <option value="Rens">Rens</option>
+      </select>
+      <label>ME: <input type="number" id="meMin" placeholder="min" style="width:50px" onchange="searchBpos()"> — <input type="number" id="meMax" placeholder="max" style="width:50px" onchange="searchBpos()"></label>
+      <label>TE: <input type="number" id="teMin" placeholder="min" style="width:50px" onchange="searchBpos()"> — <input type="number" id="teMax" placeholder="max" style="width:50px" onchange="searchBpos()"></label>
+      <label><input type="checkbox" id="profitOnly" onchange="searchBpos()"> Profit uniquement</label>
+    </div>
+    <div id="searchResults"></div>
+  </div>
+
+  <!-- SUMMARY -->
+  <div class="page" id="page-summary"><div id="summaryContent"></div></div>
+
+  <!-- RANKING -->
+  <div class="page" id="page-ranking">
+    <div class="search-bar">
+      <select id="rankingHub" onchange="loadRanking()">
+        <option value="Dodixie">Dodixie</option>
+        <option value="Jita">Jita</option>
+        <option value="Amarr">Amarr</option>
+        <option value="Rens">Rens</option>
+      </select>
+      <select id="rankingSort" onchange="loadRanking()">
+        <option value="profit">Trier par profit</option>
+        <option value="margin">Trier par marge %</option>
+      </select>
+    </div>
+    <div id="rankingContent"></div>
+  </div>
+
+  <!-- IMPROVEMENTS -->
+  <div class="page" id="page-improvements"><div id="improvementsContent"></div></div>
+
+  <!-- MATERIALS -->
+  <div class="page" id="page-materials"><div id="materialsContent"></div></div>
+</div>
+
+<!-- Add Character Modal -->
+<div class="modal-overlay" id="addCharModal">
+  <div class="modal">
+    <h2>🚀 Ajouter un personnage EVE</h2>
+
+    <!-- One-click mode: default_sso is configured -->
+    <div id="oneClickSection" style="display:none">
+      <p class="info" style="margin-bottom:16px;">
+        Cliquez sur le bouton ci-dessous pour vous connecter avec votre compte EVE Online.<br>
+        Vous serez redirigé vers le site EVE pour autoriser l'accès à vos BPO.<br>
+        <strong>Aucune configuration nécessaire</strong> — l'application est déjà enregistrée.
+      </p>
+      <div class="actions">
+        <button class="btn btn-outline" onclick="hideAddCharacter()">Annuler</button>
+        <button class="btn" onclick="startSsoOneClick()">🚀 Se connecter avec EVE Online</button>
+      </div>
+    </div>
+
+    <!-- Manual mode: user provides Client ID/Secret -->
+    <div id="manualSection">
+      <p class="info" style="margin-bottom:12px;">
+        Pour connecter votre personnage, vous devez enregistrer une application sur le portail développeur EVE Online.
+        Suivez les étapes ci-dessous :
+      </p>
+      <ol class="info" style="margin-bottom:16px; padding-left:20px; line-height:1.8;">
+        <li>Allez sur <a href="https://developers.eveonline.com/" target="_blank" style="color:var(--accent)">developers.eveonline.com</a> et connectez-vous (ou créez un compte)</li>
+        <li>Cliquez <strong>Manage Applications</strong> → <strong>Create New Application</strong></li>
+        <li>Remplissez :
+          <ul style="margin-top:4px; margin-bottom:4px; padding-left:16px;">
+            <li><strong>Name</strong> : ce que vous voulez (ex: <code>BPO Dashboard</code>)</li>
+            <li><strong>Description</strong> : optionnel</li>
+            <li><strong>Connection Type</strong> : <code>Authentication & API Access</code></li>
+            <li><strong>Permissions</strong> : ajoutez le scope <code>esi-industry.read_character.blueprints.v1</code></li>
+            <li><strong>Callback URL</strong> : copiez celui indiqué ci-dessous</li>
+          </ul>
+        </li>
+        <li>Validez, puis copiez le <strong>Client ID</strong> et <strong>Client Secret</strong> ci-dessous</li>
+      </ol>
+      <div style="background:var(--surface2); border:1px solid var(--accent); border-radius:6px; padding:10px 14px; margin-bottom:16px;">
+        <div style="font-size:11px; color:var(--text2); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Callback URL à copier</div>
+        <code id="callbackPreview" style="font-size:14px; color:var(--accent); user-select:all;">http://localhost:8090/api/sso/callback</code>
+      </div>
+      <label>Client ID</label>
+      <input type="text" id="ssoClientId" placeholder="Ex: b207b88494fa4712a75fec0b6447eaf4">
+      <label>Client Secret</label>
+      <input type="text" id="ssoClientSecret" placeholder="Ex: abc123def456...">
+      <div class="actions">
+        <button class="btn btn-outline" onclick="hideAddCharacter()">Annuler</button>
+        <button class="btn" onclick="startSsoManual()">🔗 Se connecter via EVE Online</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentSort = { key: 'bp_name', desc: false };
+let bposCache = [];
+let currentChar = null;
+let allChars = [];
+
+function fmt(n) {
+  if (n === null || n === undefined) return '—';
+  return new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+}
+function fmtInt(n) {
+  if (n === null || n === undefined) return '—';
+  return new Intl.NumberFormat('fr-FR').format(n);
+}
+function profitClass(v) { return v > 0 ? 'profit-cell' : v < 0 ? 'loss-cell' : ''; }
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+function switchTab(page) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelector(`.tab[data-page="${page}"]`).classList.add('active');
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(`page-${page}`).classList.add('active');
+  if (page === 'summary') loadSummary();
+  if (page === 'ranking') loadRanking();
+  if (page === 'improvements') loadImprovements();
+  if (page === 'materials') loadMaterials();
+}
+
+let ssoConfigured = false;
+
+async function loadCharacters() {
+  const resp = await fetch('/api/characters');
+  const data = await resp.json();
+  // API now returns { default_sso_configured: bool, characters: [...] }
+  ssoConfigured = data.default_sso_configured;
+  allChars = data.characters || [];
+  const sel = document.getElementById('charSelector');
+  sel.innerHTML = '';
+  
+  if (allChars.length === 0) {
+    sel.innerHTML = '<span style="color:var(--text2);font-size:13px">Aucun personnage</span>';
+    document.getElementById('searchResults').innerHTML = '<div class="empty"><h2>Aucun personnage connecté</h2><p>Cliquez sur <strong>+ Personnage</strong> pour ajouter votre premier personnage EVE Online.</p></div>';
+    return;
+  }
+  
+  // "All" chip
+  const allChip = document.createElement('div');
+  allChip.className = 'char-chip' + (currentChar === null ? ' active' : '');
+  allChip.textContent = 'Tous';
+  allChip.onclick = () => { currentChar = null; loadCharacters(); searchBpos(); };
+  sel.appendChild(allChip);
+  
+  allChars.forEach(c => {
+    const chip = document.createElement('div');
+    chip.className = 'char-chip' + (currentChar === c.id ? ' active' : '');
+    chip.innerHTML = `${esc(c.name)}${c.has_data ? ' ✓' : ''}<span class="delete-char" onclick="event.stopPropagation();deleteCharacter(${c.id})" title="Supprimer">×</span>`;
+    chip.onclick = () => { currentChar = c.id; loadCharacters(); searchBpos(); };
+    sel.appendChild(chip);
+  });
+}
+
+async function deleteCharacter(charId) {
+  if (!confirm('Supprimer ce personnage et toutes ses données BPO ?')) return;
+  try {
+    const resp = await fetch('/api/characters/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ char_id: charId }),
+    });
+    const result = await resp.json();
+    if (result.status === 'deleted') {
+      currentChar = null;
+      await loadCharacters();
+      await searchBpos();
+    } else {
+      alert('Erreur: ' + (result.error || 'inconnue'));
+    }
+  } catch (e) {
+    alert('Erreur: ' + e.message);
+  }
+}
+
+function showAddCharacter() {
+  document.getElementById('addCharModal').classList.add('active');
+  document.getElementById('ssoLink').classList.remove('visible');
+  // Set dynamic callback URL based on current origin
+  const callbackEl = document.getElementById('callbackPreview');
+  if (callbackEl) {
+    callbackEl.textContent = `${window.location.origin}/api/sso/callback`;
+  }
+  // If default_sso is configured, show simplified UI
+  const oneClickSection = document.getElementById('oneClickSection');
+  const manualSection = document.getElementById('manualSection');
+  if (ssoConfigured) {
+    oneClickSection.style.display = 'block';
+    manualSection.style.display = 'none';
+  } else {
+    oneClickSection.style.display = 'none';
+    manualSection.style.display = 'block';
+  }
+}
+function hideAddCharacter() {
+  document.getElementById('addCharModal').classList.remove('active');
+}
+
+async function startSsoOneClick() {
+  try {
+    const resp = await fetch('/api/sso/start');
+    if (!resp.ok) {
+      const err = await resp.json();
+      alert('Erreur: ' + (err.error || err.message || 'SSO non configuré'));
+      return;
+    }
+    const result = await resp.json();
+    if (result.url) {
+      window.open(result.url, '_blank');
+      // Close modal, user will be redirected back
+      hideAddCharacter();
+    } else {
+      alert('Erreur: réponse invalide');
+    }
+  } catch (e) {
+    alert('Erreur: ' + e.message);
+  }
+}
+
+async function startSsoManual() {
+  const clientId = document.getElementById('ssoClientId').value.trim();
+  const clientSecret = document.getElementById('ssoClientSecret').value.trim();
+  // Use current origin + /api/sso/callback as default callback
+  const callbackUrl = `${window.location.origin}/api/sso/callback`;
+  
+  if (!clientId || !clientSecret) {
+    alert('Veuillez remplir le Client ID et le Client Secret.');
+    return;
+  }
+  
+  try {
+    const resp = await fetch('/api/sso/authorize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ client_id: clientId, client_secret: clientSecret, callback_url: callbackUrl }),
+    });
+    const result = await resp.json();
+    if (result.url) {
+      window.open(result.url, '_blank');
+      hideAddCharacter();
+    } else {
+      alert('Erreur: ' + (result.error || 'réponse invalide'));
+    }
+  } catch (e) {
+    alert('Erreur: ' + e.message);
+  }
+}
+
+async function searchBpos() {
+  const q = document.getElementById('searchInput').value;
+  const hub = document.getElementById('hubFilter').value;
+  const meMin = document.getElementById('meMin').value;
+  const meMax = document.getElementById('meMax').value;
+  const teMin = document.getElementById('teMin').value;
+  const teMax = document.getElementById('teMax').value;
+  const profitOnly = document.getElementById('profitOnly').checked;
+
+  const params = new URLSearchParams();
+  if (q) params.set('q', q);
+  if (hub !== 'all') params.set('hub', hub);
+  if (meMin) params.set('me_min', meMin);
+  if (meMax) params.set('me_max', meMax);
+  if (teMin) params.set('te_min', teMin);
+  if (teMax) params.set('te_max', teMax);
+  if (profitOnly) params.set('profit_only', 'true');
+  params.set('sort_by', currentSort.key);
+  params.set('sort_desc', currentSort.desc);
+  if (currentChar) params.set('char_id', currentChar);
+
+  const resp = await fetch(`/api/bpos?${params}`);
+  bposCache = await resp.json();
+  renderBpoTable(bposCache);
+}
+
+function renderBpoTable(bpos) {
+  if (bpos.length === 0) {
+    document.getElementById('searchResults').innerHTML = '<div class="empty"><h2>Aucun BPO trouvé</h2><p>Modifiez vos critères ou rafraîchissez les données.</p></div>';
+    return;
+  }
+  
+  let html = `<table><thead><tr>
+    <th onclick="sortBy('bp_name')">BPO <span class="sort ${currentSort.key==='bp_name'?'active':''}">${currentSort.key==='bp_name'?(currentSort.desc?'▼':'▲'):''}</span></th>
+    <th>Produit</th>
+    <th onclick="sortBy('me')">ME</th>
+    <th onclick="sortBy('te')">TE</th>
+    <th>Vente Jita</th><th>Coût Jita</th><th class="profit-cell" onclick="sortBy('profit')">Profit Jita</th>
+    <th>Vente Dodixie</th><th>Coût Dodixie</th><th class="profit-cell">Profit Dodixie</th>
+    <th>Meilleur hub</th><th>Marge %</th>
+  </tr></thead><tbody>`;
+  
+  for (const b of bpos) {
+    const pj = b.profit_jita;
+    const pd = b.profit_dodixie;
+    html += `<tr>
+      <td><strong>${esc(b.bp_name)}</strong>${b.me<10?'<span class="tag tag-me">ME'+b.me+'</span>':''}${b.te<20?'<span class="tag tag-te">TE'+b.te+'</span>':''}</td>
+      <td>${esc(b.product_name)}</td>
+      <td class="${b.me<10?'me-low':'me-ok'}">${b.me}/10</td>
+      <td class="${b.te<20?'te-low':'te-ok'}">${b.te}/20</td>
+      <td>${fmt(b.price_jita)}</td>
+      <td>${fmt(b.mat_cost_jita)}</td>
+      <td class="${profitClass(pj)}">${fmt(pj)}</td>
+      <td>${fmt(b.price_dodixie)}</td>
+      <td>${fmt(b.mat_cost_dodixie)}</td>
+      <td class="${profitClass(pd)}">${fmt(pd)}</td>
+      <td>${b.best_hub} (${fmt(b.best_profit)})</td>
+      <td>${b.margin_dodixie !== undefined ? fmt(b.margin_dodixie) + '%' : '—'}</td>
+    </tr>`;
+  }
+  html += '</tbody></table>';
+  document.getElementById('searchResults').innerHTML = html;
+}
+
+function sortBy(key) {
+  if (currentSort.key === key) { currentSort.desc = !currentSort.desc; }
+  else { currentSort = { key, desc: key === 'profit' || key === 'margin' }; }
+  searchBpos();
+}
+
+async function loadSummary() {
+  const resp = await fetch('/api/summary');
+  const s = await resp.json();
+  if (s.total_bpos === 0) {
+    document.getElementById('summaryContent').innerHTML = '<div class="empty"><h2>Aucune donnée</h2><p>Connectez un personnage et rafraîchissez les données.</p></div>';
+    return;
+  }
+  let html = `<div class="stats-grid">
+    <div class="stat-card"><h3>Total BPOs</h3><div class="value accent">${s.total_bpos}</div></div>
+    <div class="stat-card"><h3>ME à améliorer</h3><div class="value ${s.needs_me_improvement > 0?'loss':'profit'}">${s.needs_me_improvement}</div><div class="sub">ME &lt; 10</div></div>
+    <div class="stat-card"><h3>TE à améliorer</h3><div class="value ${s.needs_te_improvement > 0?'loss':'profit'}">${s.needs_te_improvement}</div><div class="sub">TE &lt; 20</div></div>
+    <div class="stat-card"><h3>ME + TE à faire</h3><div class="value" style="${s.needs_both>0?'color:var(--warning)':''}">${s.needs_both}</div></div>
+  </div><div class="stats-grid">`;
+  for (const hub of ['Jita', 'Amarr', 'Dodixie', 'Rens']) {
+    const profitable = s.profitable_per_hub[hub] || 0;
+    const invest = s.total_investment[hub] || 0;
+    const revenue = s.total_revenue[hub] || 0;
+    const profit = revenue - invest;
+    html += `<div class="stat-card"><h3>${hub}</h3><div class="value ${profit>0?'profit':'loss'}">${fmt(profit)}</div><div class="sub">${profitable}/${s.total_bpos} profitable · Investissement: ${fmt(invest)}</div></div>`;
+  }
+  html += '</div><div class="top-sections"><div class="top-section"><h3>🏆 Top 5 profits (Dodixie)</h3>';
+  for (const b of s.top_profits) {
+    const p = b.profit?.Dodixie || b.profit_dodixie || 0;
+    html += `<div>${esc(b.bp_name)}: <span class="profit-cell">${fmt(p)}</span></div>`;
+  }
+  html += '</div><div class="top-section"><h3>💀 Top 5 pertes (Dodixie)</h3>';
+  for (const b of s.worst_losses) {
+    const p = b.profit?.Dodixie || b.profit_dodixie || 0;
+    html += `<div>${esc(b.bp_name)}: <span class="loss-cell">${fmt(p)}</span></div>`;
+  }
+  html += '</div></div>';
+  document.getElementById('summaryContent').innerHTML = html;
+}
+
+async function loadRanking() {
+  const hub = document.getElementById('rankingHub').value;
+  const sort = document.getElementById('rankingSort').value;
+  const params = new URLSearchParams({ sort_by: sort === 'margin' ? 'margin' : 'profit', sort_desc: 'true', hub });
+  if (currentChar) params.set('char_id', currentChar);
+  const resp = await fetch(`/api/bpos?${params}`);
+  const bpos = await resp.json();
+  if (bpos.length === 0) { document.getElementById('rankingContent').innerHTML = '<div class="empty"><h2>Aucune donnée</h2></div>'; return; }
+  const hubLower = hub.toLowerCase();
+  let html = `<table><thead><tr><th>#</th><th>BPO</th><th>ME</th><th>TE</th><th>Vente ${hub}</th><th>Coût ${hub}</th><th>Profit ${hub}</th><th>Marge %</th><th>Meilleur hub</th></tr></thead><tbody>`;
+  bpos.forEach((b, i) => {
+    const profitKey = `profit_${hubLower}`;
+    const marginKey = `margin_${hubLower}`;
+    const profit = b[profitKey] || 0;
+    const margin = b[marginKey] || 0;
+    html += `<tr><td>${i+1}</td><td><strong>${esc(b.bp_name)}</strong></td><td class="${b.me<10?'me-low':'me-ok'}">${b.me}/10</td><td class="${b.te<20?'te-low':'te-ok'}">${b.te}/20</td><td>${fmt(b[`price_${hubLower}`])}</td><td>${fmt(b[`mat_cost_${hubLower}`])}</td><td class="${profitClass(profit)}">${fmt(profit)}</td><td>${fmt(margin)}%</td><td>${b.best_hub}</td></tr>`;
+  });
+  html += '</tbody></table>';
+  document.getElementById('rankingContent').innerHTML = html;
+}
+
+async function loadImprovements() {
+  const resp = await fetch('/api/improvements');
+  const items = await resp.json();
+  if (items.length === 0) { document.getElementById('improvementsContent').innerHTML = '<div class="empty"><h2>Tous les BPOs sont optimisés !</h2><p>ME 10/10 et TE 20/20 partout.</p></div>'; return; }
+  let html = `<table><thead><tr><th>BPO</th><th>ME</th><th>TE</th><th>Coût mats (Jita)</th><th>Économie ME10</th><th>Priorité</th></tr></thead><tbody>`;
+  for (const item of items) {
+    html += `<tr><td><strong>${esc(item.bp_name)}</strong></td><td class="${item.me_needs?'me-low':'me-ok'}">${item.me}/10 ${item.me_needs?'⚠️':'✅'}</td><td class="${item.te_needs?'te-low':'te-ok'}">${item.te}/20 ${item.te_needs?'⚠️':'✅'}</td><td>${fmt(item.current_mat_cost_jita)}</td><td class="profit-cell">${fmt(item.estimated_me_saving_jita)}</td><td>${item.me_needs&&item.te_needs?'<span class="badge badge-warning">ME+TE</span>':item.me_needs?'<span class="badge badge-warning">ME</span>':'<span class="badge" style="background:#1a062a;color:#a070f0">TE</span>'}</td></tr>`;
+  }
+  html += '</tbody></table>';
+  document.getElementById('improvementsContent').innerHTML = html;
+}
+
+async function loadMaterials() {
+  const resp = await fetch('/api/materials');
+  const mats = await resp.json();
+  if (mats.length === 0) { document.getElementById('materialsContent').innerHTML = '<div class="empty"><h2>Aucune donnée</h2></div>'; return; }
+  let html = `<table><thead><tr><th>Matériau</th><th>Qté totale</th><th>Prix unitaire Jita</th><th>Coût total Jita</th></tr></thead><tbody>`;
+  for (const m of mats) { html += `<tr><td>${esc(m.name)}</td><td>${fmtInt(m.total_quantity)}</td><td>${fmt(m.unit_price_jita)}</td><td>${fmt(m.total_cost_jita)}</td></tr>`; }
+  html += '</tbody></table>';
+  document.getElementById('materialsContent').innerHTML = html;
+}
+
+async function refreshData() {
+  const btn = document.getElementById('refreshBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Rafraîchissement...';
+  try {
+    const body = currentChar ? { char_id: currentChar } : {};
+    const resp = await fetch('/api/refresh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const result = await resp.json();
+    if (result.status === 'already_refreshing') { alert('Rafraîchissement déjà en cours...'); return; }
+    await loadCharacters();
+    await searchBpos();
+    document.getElementById('lastUpdate').textContent = '✅ Mis à jour';
+  } catch (e) { alert('Erreur: ' + e.message); }
+  finally { btn.disabled = false; btn.textContent = '🔄 Rafraîchir'; }
+}
+
+// Initial load
+loadCharacters().then(() => searchBpos());
+
+// Auto-refresh characters every 30s (in case SSO callback adds a character)
+setInterval(loadCharacters, 30000);
+</script>
+
+</body>
+</html>
