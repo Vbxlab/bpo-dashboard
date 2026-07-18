@@ -15,14 +15,23 @@ async fn main() -> anyhow::Result<()> {
     let config_path = std::env::var("BPO_CONFIG")
         .unwrap_or_else(|_| AppConfig::default_path());
 
+    // Ensure config directory exists before loading/creating config
+    if let Some(parent) = std::path::Path::new(&config_path).parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+
     let config = AppConfig::load(&config_path)
         .unwrap_or_else(|_| {
-            eprintln!("Starting with empty config — add characters via the web UI.");
+            eprintln!("⚠️  No config found at {}", config_path);
+            eprintln!("   Creating default config with placeholders...");
+            eprintln!("   Edit the file and add your EVE developer app credentials.");
             let mut c = AppConfig::default_config();
             c.data_dir = std::path::Path::new(&config_path)
                 .parent()
                 .map(|p| p.to_string_lossy().to_string())
                 .unwrap_or_else(|| c.data_dir.clone());
+            // Save placeholder config
+            let _ = c.save(&config_path);
             c
         });
 

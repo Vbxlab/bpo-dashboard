@@ -65,24 +65,17 @@ impl AppConfig {
     }
 
     pub fn default_path() -> String {
-        let dir = std::env::var("BPO_DATA_DIR").unwrap_or_else(|_| {
-            format!("{}/.local/share/bpo-dashboard", std::env::var("HOME").unwrap_or_default())
-        });
-        format!("{}/config.json", dir)
+        // Use ./data/config.json relative to current directory (portable)
+        "./data/config.json".to_string()
     }
 
     pub fn default_config() -> Self {
-        let data_dir = std::env::var("BPO_DATA_DIR").unwrap_or_else(|_| {
-            format!("{}/.local/share/bpo-dashboard", std::env::var("HOME").unwrap_or_default())
-        });
-        let mut config = Self {
+        Self {
             port: 8090,
-            data_dir,
+            data_dir: "./data".to_string(),
             default_sso: None,
             characters: Vec::new(),
-        };
-        config.resolve_default_sso();
-        config
+        }
     }
 
     #[allow(dead_code)]
