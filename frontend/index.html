@@ -470,7 +470,8 @@ async function deleteCharacter(charId) {
 
 function showAddCharacter() {
   document.getElementById('addCharModal').classList.add('active');
-  document.getElementById('ssoLink').classList.remove('visible');
+  const ssoLink = document.getElementById('ssoLink');
+  if (ssoLink) ssoLink.classList.remove('visible');
   // Set dynamic callback URL based on current origin
   const callbackEl = document.getElementById('callbackPreview');
   if (callbackEl) {
