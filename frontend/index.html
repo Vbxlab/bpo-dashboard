@@ -868,6 +868,8 @@ async function quitApp() {
     await fetch('/api/quit', { method: 'POST' });
   } catch(e) {}
   window.close();
+  // Si window.close() échoue (onglet non ouvert par script), redirige vers une page vide
+  document.body.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;background:#0f111a;color:#8888aa;font-family:sans-serif;text-align:center"><div><h2>Dashboard arrêté</h2><p>Vous pouvez fermer cet onglet.</p></div></div>';
 }
 
 // Initial load
