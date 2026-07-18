@@ -411,7 +411,7 @@ function switchTab(page) {
 let ssoConfigured = false;
 
 async function loadCharacters() {
-  const resp = await fetch('/api/characters');
+  const resp = await fetch('/api/characters?t=' + Date.now());
   const data = await resp.json();
   // API now returns { default_sso_configured: bool, characters: [...] }
   ssoConfigured = data.default_sso_configured;
