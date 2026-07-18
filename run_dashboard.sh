@@ -18,19 +18,23 @@ if [[ ! -f "${REAL_CFG}" ]]; then
     cp "${EXAMPLE_CFG}" "${REAL_CFG}"
 fi
 
-# 3️⃣ Demande les credentials (affichés à l'écran, pas masqués)
-read -p "Client ID : " client_id
-read -p "Client Secret : " client_secret
+# 3️⃣ Demande les credentials seulement si le template contient encore les placeholders
+if grep -q '"VOTRE_CLIENT_ID"' "${REAL_CFG}" || grep -q '"VOTRE_CLIENT_SECRET"' "${REAL_CFG}"; then
+    echo "🔐  Credentials à configurer."
+    read -p "Client ID : " client_id
+    read -p "Client Secret : " client_secret
 
-escaped_id=$(printf '%s' "$client_id" | sed 's/[\/&]/\\&/g')
-escaped_secret=$(printf '%s' "$client_secret" | sed 's/[\/&]/\\&/g')
+    escaped_id=$(printf '%s' "$client_id" | sed 's/[\/&]/\\&/g')
+    escaped_secret=$(printf '%s' "$client_secret" | sed 's/[\/&]/\\&/g')
 
-sed -i "s/\"client_id\": \"[^\"]*\"/\"client_id\": \"${escaped_id}\"/" "${REAL_CFG}"
-sed -i "s/\"client_secret\": \"[^\"]*\"/\"client_secret\": \"${escaped_secret}\"/" "${REAL_CFG}"
+    sed -i "s/\"client_id\": \"[^\"]*\"/\"client_id\": \"${escaped_id}\"/" "${REAL_CFG}"
+    sed -i "s/\"client_secret\": \"[^\"]*\"/\"client_secret\": \"${escaped_secret}\"/" "${REAL_CFG}"
 
-# 4️⃣ Confirmation
-echo "✅  client_id     : ${client_id}"
-echo "✅  client_secret : ${client_secret}"
+    echo "✅  client_id     : ${client_id}"
+    echo "✅  client_secret : ${client_secret}"
+else
+    echo "✅  Credentials déjà présents dans ${REAL_CFG}."
+fi
 
 # 5️⃣ Compile si besoin
 if [[ ! -x "${EXECUTABLE}" ]]; then
