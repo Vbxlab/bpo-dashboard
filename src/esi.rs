@@ -86,6 +86,60 @@ async fn fetch_bpos(char_id: i64, token: &str) -> Result<Vec<serde_json::Value>>
     Ok(all.into_iter().filter(|bp| bp.get("quantity").and_then(|v| v.as_i64()) == Some(-1)).collect())
 }
 
+/// Fetch BPCs (Blueprint Copies) — quantity != -1, runs > 0
+async fn fetch_bpcs(char_id: i64, token: &str) -> Result<Vec<serde_json::Value>> {
+    let mut all = Vec::new();
+    let mut page = 1;
+    loop {
+        let url = format!("{}/characters/{}/blueprints/?datasource=tranquility&page={}",
+            ESI_BASE, char_id, page);
+        let data = esi_get(&url, Some(token)).await?;
+        let arr = data.as_array().cloned().unwrap_or_default();
+        if arr.is_empty() { break; }
+        let arr_len = arr.len();
+        all.extend(arr);
+        if arr_len < 500 { break; }
+        page += 1;
+    }
+    Ok(all.into_iter().filter(|bp| bp.get("quantity").and_then(|v| v.as_i64()) != Some(-1)).collect())
+}
+
+/// Fetch corp BPOs — requires esi-corporations.read_blueprints.v1
+async fn fetch_corp_bpos(corp_id: i64, token: &str) -> Result<Vec<serde_json::Value>> {
+    let mut all = Vec::new();
+    let mut page = 1;
+    loop {
+        let url = format!("{}/corporations/{}/blueprints/?datasource=tranquility&page={}",
+            ESI_BASE, corp_id, page);
+        let data = esi_get(&url, Some(token)).await?;
+        let arr = data.as_array().cloned().unwrap_or_default();
+        if arr.is_empty() { break; }
+        let arr_len = arr.len();
+        all.extend(arr);
+        if arr_len < 500 { break; }
+        page += 1;
+    }
+    Ok(all.into_iter().filter(|bp| bp.get("quantity").and_then(|v| v.as_i64()) == Some(-1)).collect())
+}
+
+/// Fetch corp BPCs
+async fn fetch_corp_bpcs(corp_id: i64, token: &str) -> Result<Vec<serde_json::Value>> {
+    let mut all = Vec::new();
+    let mut page = 1;
+    loop {
+        let url = format!("{}/corporations/{}/blueprints/?datasource=tranquility&page={}",
+            ESI_BASE, corp_id, page);
+        let data = esi_get(&url, Some(token)).await?;
+        let arr = data.as_array().cloned().unwrap_or_default();
+        if arr.is_empty() { break; }
+        let arr_len = arr.len();
+        all.extend(arr);
+        if arr_len < 500 { break; }
+        page += 1;
+    }
+    Ok(all.into_iter().filter(|bp| bp.get("quantity").and_then(|v| v.as_i64()) != Some(-1)).collect())
+}
+
 // ─── Resolve Type Names ───────────────────────────────────────
 
 async fn resolve_type_names(type_ids: &[i64]) -> Result<HashMap<i64, String>> {

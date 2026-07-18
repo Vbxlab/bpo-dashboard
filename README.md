@@ -48,7 +48,9 @@ mv /tmp/bpo-dashboard-backup target/release/bpo-dashboard
    - **Name** : `BPO Dashboard` (ou ce que tu veux)
    - **Description** : `Dashboard personnel pour suivre les BPO`
    - **Callback URL** : `http://localhost:8090/api/sso/callback` (**important !** c'est l'URL où EVE redirigera après connexion)
-5. Dans **Enabled Scopes**, coche : `esi-characters.read_blueprints.v1`
+5. Dans **Enabled Scopes**, coche :
+   - `esi-characters.read_blueprints.v1` (BPO + BPC personnels)
+   - `esi-corporations.read_blueprints.v1` (BPO + BPC de corporation)
 6. Sauvegarde
 
 Tu obtiendras :
