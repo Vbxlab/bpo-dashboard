@@ -463,18 +463,10 @@ pub async fn api_sso_callback(
 
     eprintln!("DEBUG verify response: {}", serde_json::to_string_pretty(&verify).unwrap_or_default());
 
-    // Extract character ID from subject like "CHARACTER:EVE:92304258"
-    let subject = verify.get("sub").and_then(|v| v.as_str())
-        .or_else(|| verify.get("Sub").and_then(|v| v.as_str()))
-        .unwrap_or("");
-    let char_id: i64 = subject.rsplit(':').next()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or_else(|| {
-            // Fallback: try character_id field directly
-            verify.get("character_id").and_then(|v| v.as_i64()).unwrap_or(0)
-        });
+    // Extract character ID — EVE SSO v2 uses "CharacterID"
+    let char_id: i64 = verify.get("CharacterID").and_then(|v| v.as_i64())
+        .unwrap_or(0);
     let char_name = verify.get("CharacterName").and_then(|v| v.as_str())
-        .or_else(|| verify.get("character_name").and_then(|v| v.as_str()))
         .unwrap_or("Unknown").to_string();
 
     // Save character to config
