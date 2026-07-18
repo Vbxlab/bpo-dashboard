@@ -80,6 +80,7 @@ async fn main() -> anyhow::Result<()> {
         // SSO: callback (EVE Online redirects here after login)
         .route("/api/sso/callback", axum::routing::get(api::api_sso_callback))
         .route("/api/characters/delete", axum::routing::post(api::api_delete_character))
+        .route("/api/quit", axum::routing::post(api::api_quit))
         .with_state(state.clone());
 
     let addr = std::net::SocketAddr::from(([0, 0, 0, 0], port));

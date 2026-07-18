@@ -551,6 +551,17 @@ pub async fn api_sso_callback(
     Ok(Redirect::to("/"))
 }
 
+// ─── Quit ─────────────────────────────────────────────────────
+
+pub async fn api_quit() -> Json<serde_json::Value> {
+    // Kill le process dans 100ms pour laisser le temps de répondre
+    tokio::spawn(async {
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        std::process::exit(0);
+    });
+    Json(serde_json::json!({"status": "quitting"}))
+}
+
 // ─── Frontend ─────────────────────────────────────────────────
 
 pub async fn index() -> Html<&'static str> {
