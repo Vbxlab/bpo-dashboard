@@ -356,7 +356,7 @@ pub async fn api_sso_start(State(state): State<AppState>) -> Result<Json<serde_j
         let _ = std::fs::write(&path, serde_json::to_string_pretty(&pending).unwrap_or_default());
     }
 
-    let scopes = "esi-industry.read_character.blueprints.v1";
+    let scopes = "esi-characters.read_blueprints.v1";
     let sso_url = format!(
         "https://login.eveonline.com/v2/oauth/authorize/?response_type=code&redirect_uri={}&client_id={}&scope={}&state={}",
         urlencoding::encode(&sso.callback_url),
@@ -387,7 +387,7 @@ pub async fn api_sso_authorize(
         let _ = std::fs::write(&path, serde_json::to_string_pretty(&pending).unwrap_or_default());
     }
 
-    let scopes = "esi-industry.read_character.blueprints.v1";
+    let scopes = "esi-characters.read_blueprints.v1";
     let sso_url = format!(
         "https://login.eveonline.com/v2/oauth/authorize/?response_type=code&redirect_uri={}&client_id={}&scope={}&state={}",
         urlencoding::encode(&params.callback_url),
