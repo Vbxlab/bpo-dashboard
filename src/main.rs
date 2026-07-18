@@ -30,7 +30,10 @@ async fn main() -> anyhow::Result<()> {
         placeholder.save(&config_path)?;
         eprintln!("✅  Fichier de configuration créé : {}", config_path);
         eprintln!("   Édite ce fichier et remplis `client_id` et `client_secret` avec les informations de ton application EVE, puis relance le programme.");
-        std::process::exit(0);
+        // Return early – the placeholder has been created, the user must edit it then relancer.
+        return Ok(());
+        // std::process::exit(0);
+
     }
 
     // Load existing config (it must exist now)
