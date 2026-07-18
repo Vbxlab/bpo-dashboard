@@ -221,7 +221,7 @@ pub async fn api_improvements(State(state): State<AppState>) -> Json<Vec<serde_j
 
 // ─── API: Characters ────────────────────────────────────────────
 
-pub async fn api_characters(State(state): State<AppState>) -> Json<Vec<serde_json::Value>> {
+pub async fn api_characters(State(state): State<AppState>) -> Json<serde_json::Value> {
     let state = state.read().await;
     let has_default_sso = state.config.default_sso.is_some();
     let chars: Vec<serde_json::Value> = state.config.characters.iter().map(|c| {
