@@ -411,11 +411,17 @@ function switchTab(page) {
 let ssoConfigured = false;
 
 async function loadCharacters() {
-  const resp = await fetch('/api/characters?t=' + Date.now());
-  const data = await resp.json();
-  // API now returns { default_sso_configured: bool, characters: [...] }
-  ssoConfigured = data.default_sso_configured;
-  allChars = data.characters || [];
+  try {
+    const resp = await fetch('/api/characters?t=' + Date.now());
+    const data = await resp.json();
+    console.log('API /api/characters response:', data);
+    ssoConfigured = data.default_sso_configured;
+    allChars = data.characters || [];
+  } catch(e) {
+    console.error('loadCharacters error:', e);
+    ssoConfigured = false;
+    allChars = [];
+  }
   const sel = document.getElementById('charSelector');
   sel.innerHTML = '';
   
