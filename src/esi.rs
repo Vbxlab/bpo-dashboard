@@ -20,11 +20,10 @@ pub async fn refresh_token(character: &mut Character) -> Result<()> {
     let auth = base64::Engine::encode(&base64::engine::general_purpose::STANDARD,
         format!("{}:{}", character.sso.client_id, character.sso.client_secret));
 
-    let params_str = format!(
+    let params = format!(
         "grant_type=refresh_token&refresh_token={}",
-        character.tokens.refresh_token
+        urlencoding::encode(&character.tokens.refresh_token)
     );
-    let params = urlencoding::encode(&params_str);
 
     let client = reqwest::Client::new();
     let resp = client
@@ -32,7 +31,7 @@ pub async fn refresh_token(character: &mut Character) -> Result<()> {
         .header("Authorization", format!("Basic {}", auth))
         .header("Content-Type", "application/x-www-form-urlencoded")
         .header("User-Agent", "BPO-Dashboard/1.0")
-        .body(params.to_string())
+        .body(params)
         .send()
         .await
         .context("Failed to refresh SSO token")?;
