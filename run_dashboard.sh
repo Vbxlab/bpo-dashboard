@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -e
+# Pas de set -e pour que le trap fonctionne correctement
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DATA_DIR="${REPO_DIR}/data"
@@ -47,9 +47,16 @@ echo "🚀  Dashboard sur ${URL}"
 "${EXECUTABLE}" &
 PID=$!
 
-# Tue le binaire quand on fait Ctrl+C ou ferme le terminal
-trap "kill -9 ${PID} 2>/dev/null; exit 0" INT TERM EXIT
+# Tue le binaire quand on fait Ctrl+C, ferme le terminal, ou ferme le navigateur
+cleanup() {
+  kill -9 ${PID} 2>/dev/null
+  exit 0
+}
+trap cleanup INT TERM EXIT HUP
 
 sleep 2
 xdg-open "${URL}" >/dev/null 2>&1 || true
-wait $PID
+
+# Attend que le binaire se termine. Si Ctrl+C, le trap tue le binaire.
+wait $PID 2>/dev/null
+exit 0

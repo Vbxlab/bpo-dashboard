@@ -203,13 +203,10 @@ pub async fn fetch_and_build(character: &mut Character) -> Result<BpoData> {
         .filter_map(|bp| bp.get("type_id").and_then(|v| v.as_i64()))
         .collect();
 
-    // 3. Resolve names
-    let type_names = resolve_type_names(&bp_type_ids).await?;
-
-    // 4. Fetch manufacturing data
+    // 3. Fetch manufacturing data
     let bp_mfg = fetch_bp_manufacturing(&bp_type_ids).await?;
 
-    // 5. Collect all type IDs for pricing
+    // 4. Collect all type IDs for names + pricing
     let mut all_type_ids: Vec<i64> = bp_type_ids.clone();
     for (_tid, mfg) in &bp_mfg {
         if let Some(details) = mfg.get("blueprintDetails") {
@@ -229,6 +226,9 @@ pub async fn fetch_and_build(character: &mut Character) -> Result<BpoData> {
     }
     all_type_ids.sort();
     all_type_ids.dedup();
+
+    // 5. Resolve names for ALL types (BPOs, products, materials)
+    let type_names = resolve_type_names(&all_type_ids).await?;
 
     // 6. Fetch prices
     let hub_prices = fetch_hub_prices(&all_type_ids).await?;

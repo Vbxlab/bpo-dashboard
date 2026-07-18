@@ -653,7 +653,7 @@ async function loadSummary() {
 async function loadRanking() {
   const hub = document.getElementById('rankingHub').value;
   const sort = document.getElementById('rankingSort').value;
-  const params = new URLSearchParams({ sort_by: sort === 'margin' ? 'margin' : 'profit', sort_desc: 'true', hub });
+  const params = new URLSearchParams({ sort_by: sort === 'margin' ? 'margin' : sort === 'price' ? 'price' : 'profit', sort_desc: 'true', hub });
   if (currentChar) params.set('char_id', currentChar);
   const resp = await fetch(`/api/bpos?${params}`);
   const bpos = await resp.json();
@@ -696,12 +696,18 @@ async function loadMaterials() {
   document.getElementById('materialsContent').innerHTML = html;
 }
 
+let refreshDotsInterval = null;
 async function refreshData() {
   const btn = document.getElementById('refreshBtn');
   const updateEl = document.getElementById('lastUpdate');
   btn.disabled = true;
-  btn.textContent = '⏳ Chargement...';
-  updateEl.textContent = '⏳ Récupération des BPO et prix marché...';
+  // Animation points animés
+  let dots = 0;
+  refreshDotsInterval = setInterval(() => {
+    dots = (dots + 1) % 4;
+    btn.textContent = '⏳' + '.'.repeat(dots);
+  }, 500);
+  updateEl.textContent = '⏳ Récupération des BPO et prix marché (peut prendre plusieurs minutes)...';
   try {
     const body = currentChar ? { char_id: currentChar } : {};
     const resp = await fetch('/api/refresh', {
@@ -711,13 +717,16 @@ async function refreshData() {
     });
     const result = await resp.json();
     if (result.status === 'already_refreshing') { updateEl.textContent = '⚠️ Rafraîchissement déjà en cours...'; return; }
-    updateEl.textContent = '⏳ Traitement des données...';
     await loadCharacters();
     await searchBpos();
     const bpoCount = bposCache.length;
     updateEl.textContent = '✅ ' + bpoCount + ' BPO mis à jour';
-  } catch (e) { updateEl.textContent = '❌ Erreur: ' + e.message; alert('Erreur: ' + e.message); }
-  finally { btn.disabled = false; btn.textContent = '🔄 Rafraîchir'; }
+  } catch (e) { updateEl.textContent = '❌ Erreur: ' + e.message; }
+  finally {
+    clearInterval(refreshDotsInterval);
+    btn.disabled = false;
+    btn.textContent = '🔄 Rafraîchir';
+  }
 }
 
 // Initial load
