@@ -258,6 +258,38 @@ tr:hover { background: var(--surface2); }
 .modal .sso-link a { color: var(--accent); }
 .modal .info { font-size: 13px; color: var(--text2); margin-bottom: 16px; line-height: 1.5; }
 .modal .callback-preview { font-size: 11px; color: var(--text2); margin-top: -8px; margin-bottom: 16px; font-style: italic; }
+
+.refresh-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.8);
+  z-index: 2000;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+.refresh-overlay.active { display: flex; }
+.refresh-overlay .content {
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  padding: 40px 60px;
+  max-width: 500px;
+}
+.refresh-overlay .spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid var(--surface2);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 20px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.refresh-overlay h2 { margin-bottom: 12px; }
+.refresh-overlay p { color: var(--text2); font-size: 14px; line-height: 1.6; }
+.refresh-overlay .step { margin-top: 16px; font-size: 13px; color: var(--accent); }
 </style>
 </head>
 <body>
@@ -381,6 +413,15 @@ tr:hover { background: var(--surface2); }
   </div>
 </div>
 
+<div class="refresh-overlay" id="refreshOverlay">
+  <div class="content">
+    <div class="spinner"></div>
+    <h2>Rafraîchissement des données</h2>
+    <p id="refreshStatus">Récupération des blueprints et prix marché…</p>
+    <p id="refreshHint" style="font-size:12px;margin-top:8px">Cela peut prendre plusieurs minutes selon le nombre de BPOs.</p>
+    <p class="step" id="refreshStep"></p>
+  </div>
+</div>
 <script>
 let currentSort = { key: 'bp_name', desc: false };
 let bposCache = [];
@@ -503,7 +544,7 @@ async function startSsoOneClick() {
     }
     const result = await resp.json();
     if (result.url) {
-      window.open(result.url, '_blank');
+      window.location.href = result.url;
       // Close modal, user will be redirected back
       hideAddCharacter();
     } else {
@@ -533,7 +574,7 @@ async function startSsoManual() {
     });
     const result = await resp.json();
     if (result.url) {
-      window.open(result.url, '_blank');
+      window.location.href = result.url;
       hideAddCharacter();
     } else {
       alert('Erreur: ' + (result.error || 'réponse invalide'));
@@ -633,9 +674,34 @@ async function loadSummary() {
     const profit = revenue - invest;
     html += `<div class="stat-card"><h3>${hub}</h3><div class="value ${profit>0?'profit':'loss'}">${fmt(profit)}</div><div class="sub">${profitable}/${s.total_bpos} profitable · Investissement: ${fmt(invest)}</div></div>`;
   }
+  // 4 cases hub : meilleur prix de vente + meilleur profit (nom du BPO)
+  html += '</div><div class="stats-grid">';
+  for (const hub of ['Jita', 'Amarr', 'Dodixie', 'Rens']) {
+    let bestPriceBpo = '—', bestPriceVal = 0;
+    let bestProfitBpo = '—', bestProfitVal = -Infinity;
+    for (const b of s.top_profits) {
+      const price = (b.product_prices && b.product_prices[hub]) || 0;
+      if (price > bestPriceVal) { bestPriceVal = price; bestPriceBpo = b.bp_name; }
+      const profit = b['profit_'+hub.toLowerCase()] || 0;
+      if (profit > bestProfitVal) { bestProfitVal = profit; bestProfitBpo = b.bp_name; }
+    }
+    for (const b of s.worst_losses) {
+      const profit = b['profit_'+hub.toLowerCase()] || 0;
+      if (profit > bestProfitVal) { bestProfitVal = profit; bestProfitBpo = b.bp_name; }
+    }
+    html += '<div class="stat-card"><h3>'+hub+'</h3>';
+    html += '<div style="font-size:12px;color:var(--text2);margin-top:8px">Meilleur prix vente</div>';
+    html += '<div style="font-size:14px;font-weight:600">'+esc(bestPriceBpo)+'</div>';
+    html += '<div style="font-size:13px;color:var(--accent)">'+fmt(bestPriceVal)+'</div>';
+    html += '<div style="font-size:12px;color:var(--text2);margin-top:10px">Meilleur profit</div>';
+    html += '<div style="font-size:14px;font-weight:600">'+esc(bestProfitBpo)+'</div>';
+    html += '<div style="font-size:13px;color:var(--profit)">'+fmt(bestProfitVal)+'</div>';
+    html += '</div>';
+  }
+  // Top/flop avec sélecteur de hub
   let summaryHub = window._summaryHub || 'Dodixie';
   let hubLower = summaryHub.toLowerCase();
-  html += '</div><div style="margin-bottom:12px"><label style="font-size:12px;color:var(--text2)">Hub pour top/flop : </label><select id="summaryHubSelect" onchange="window._summaryHub=this.value;loadSummary()" style="padding:4px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text)"><option value="Jita"'+(summaryHub=='Jita'?' selected':'')+'>'+"Jita"+'</option><option value="Amarr"'+(summaryHub=='Amarr'?' selected':'')+'>'+"Amarr"+'</option><option value="Dodixie"'+(summaryHub=='Dodixie'?' selected':'')+'>'+"Dodixie"+'</option><option value="Rens"'+(summaryHub=='Rens'?' selected':'')+'>'+"Rens"+'</option></select></div>';
+  html += '</div><div style="margin:16px 0"><label style="font-size:12px;color:var(--text2)">Hub pour top/flop : </label><select id="summaryHubSelect" onchange="window._summaryHub=this.value;loadSummary()" style="padding:4px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text)"><option value="Jita"'+(summaryHub=='Jita'?' selected':'')+'>'+"Jita"+'</option><option value="Amarr"'+(summaryHub=='Amarr'?' selected':'')+'>'+"Amarr"+'</option><option value="Dodixie"'+(summaryHub=='Dodixie'?' selected':'')+'>'+"Dodixie"+'</option><option value="Rens"'+(summaryHub=='Rens'?' selected':'')+'>'+"Rens"+'</option></select></div>';
   html += '<div class="top-sections"><div class="top-section"><h3>🏆 Top 5 profits ('+summaryHub+')</h3>';
   for (const b of s.top_profits) {
     const p = b['profit_'+hubLower] || 0;
@@ -687,27 +753,46 @@ async function loadMaterials() {
   const resp = await fetch('/api/materials');
   const mats = await resp.json();
   if (mats.length === 0) { document.getElementById('materialsContent').innerHTML = '<div class="empty"><h2>Aucune donnée</h2></div>'; return; }
-  let html = '<table><thead><tr><th>Matériau</th><th>Qté totale</th><th>Utilisé par (BPO : qté/run)</th></tr></thead><tbody>';
+  let html = '<p style="margin-bottom:12px;font-size:13px;color:var(--text2)">Quantité totale = somme sur tous les BPOs (qté par run × qté de produit par run). "Utilisé par" liste chaque BPO avec la quantité nécessaire par run de fabrication.</p>';
+  html += '<table><thead><tr><th>Matériau</th><th>Qté totale (tous BPO)</th><th>Utilisé par (BPO : qté/run)</th></tr></thead><tbody>';
   for (const m of mats) {
-    const usedBy = (m.used_by || []).map(u => esc(u.bp_name) + ' (' + fmtInt(u.quantity) + ')').join(', ');
+    const usedBy = (m.used_by || []).map(u => esc(u.bp_name) + ' : ' + fmtInt(u.quantity) + '/run').join('<br>');
     html += '<tr><td><strong>' + esc(m.name) + '</strong></td><td>' + fmtInt(m.total_quantity) + '</td><td style="font-size:12px;color:var(--text2)">' + usedBy + '</td></tr>';
   }
   html += '</tbody></table>';
   document.getElementById('materialsContent').innerHTML = html;
 }
 
-let refreshDotsInterval = null;
+let refreshTimerInterval = null;
 async function refreshData() {
   const btn = document.getElementById('refreshBtn');
   const updateEl = document.getElementById('lastUpdate');
+  const overlay = document.getElementById('refreshOverlay');
+  const statusEl = document.getElementById('refreshStatus');
+  const stepEl = document.getElementById('refreshStep');
+  
   btn.disabled = true;
-  // Animation points animés
-  let dots = 0;
-  refreshDotsInterval = setInterval(() => {
-    dots = (dots + 1) % 4;
-    btn.textContent = '⏳' + '.'.repeat(dots);
-  }, 500);
-  updateEl.textContent = '⏳ Récupération des BPO et prix marché (peut prendre plusieurs minutes)...';
+  overlay.classList.add('active');
+  
+  const startTime = Date.now();
+  const steps = [
+    'Rafraîchissement du token SSO…',
+    'Récupération des blueprints (ESI)…',
+    'Résolution des noms de types…',
+    'Récupération des données de fabrication…',
+    'Récupération des prix marché par hub…',
+    'Calcul des profits et marges…',
+    'Sauvegarde des données…',
+  ];
+  let stepIdx = 0;
+  stepEl.textContent = steps[0];
+  refreshTimerInterval = setInterval(() => {
+    stepIdx = (stepIdx + 1) % steps.length;
+    stepEl.textContent = steps[stepIdx];
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    statusEl.textContent = 'En cours… ' + elapsed + 's écoulées';
+  }, 3000);
+  
   try {
     const body = currentChar ? { char_id: currentChar } : {};
     const resp = await fetch('/api/refresh', {
@@ -716,14 +801,28 @@ async function refreshData() {
       body: JSON.stringify(body),
     });
     const result = await resp.json();
-    if (result.status === 'already_refreshing') { updateEl.textContent = '⚠️ Rafraîchissement déjà en cours...'; return; }
+    if (result.status === 'already_refreshing') {
+      statusEl.textContent = '⚠️ Un rafraîchissement est déjà en cours.';
+      setTimeout(() => overlay.classList.remove('active'), 2000);
+      return;
+    }
+    clearInterval(refreshTimerInterval);
+    stepEl.textContent = '';
     await loadCharacters();
     await searchBpos();
     const bpoCount = bposCache.length;
-    updateEl.textContent = '✅ ' + bpoCount + ' BPO mis à jour';
-  } catch (e) { updateEl.textContent = '❌ Erreur: ' + e.message; }
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    statusEl.textContent = '✅ ' + bpoCount + ' BPO mis à jour en ' + elapsed + 's';
+    updateEl.textContent = '✅ ' + bpoCount + ' BPO (' + elapsed + 's)';
+    setTimeout(() => overlay.classList.remove('active'), 1500);
+  } catch (e) {
+    clearInterval(refreshTimerInterval);
+    statusEl.textContent = '❌ Erreur: ' + e.message;
+    stepEl.textContent = '';
+    updateEl.textContent = '❌ Erreur';
+    setTimeout(() => overlay.classList.remove('active'), 3000);
+  }
   finally {
-    clearInterval(refreshDotsInterval);
     btn.disabled = false;
     btn.textContent = '🔄 Rafraîchir';
   }
