@@ -20,20 +20,22 @@ async fn main() -> anyhow::Result<()> {
         std::fs::create_dir_all(parent)?;
     }
 
-    let config = AppConfig::load(&config_path)
-        .unwrap_or_else(|_| {
-            eprintln!("⚠️  No config found at {}", config_path);
-            eprintln!("   Creating default config with placeholders...");
-            eprintln!("   Edit the file and add your EVE developer app credentials.");
-            let mut c = AppConfig::default_config();
-            c.data_dir = std::path::Path::new(&config_path)
-                .parent()
-                .map(|p| p.to_string_lossy().to_string())
-                .unwrap_or_else(|| c.data_dir.clone());
-            // Save placeholder config
-            let _ = c.save(&config_path);
-            c
-        });
+    // If config file does not exist, create a placeholder and exit
+    if !std::path::Path::new(&config_path).exists() {
+        // Create a minimal placeholder config (no SSO credentials)
+        let mut placeholder = AppConfig::default_config();
+        placeholder.data_dir = "./data".to_string();
+        // Ensure the data directory exists for the placeholder
+        std::fs::create_dir_all(&placeholder.data_dir)?;
+        placeholder.save(&config_path)?;
+        eprintln!("✅  Fichier de configuration créé : {}", config_path);
+        eprintln!("   Édite ce fichier et remplis `client_id` et `client_secret` avec les informations de ton application EVE, puis relance le programme.");
+        std::process::exit(0);
+    }
+
+    // Load existing config (it must exist now)
+    let config = AppConfig::load(&config_path)?;
+
 
     // Ensure data directory exists
     std::fs::create_dir_all(&config.data_dir)?;
