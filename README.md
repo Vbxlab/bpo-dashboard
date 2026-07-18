@@ -57,12 +57,13 @@ Tu obtiendras :
 
 ### Étape 2 : Configurer le dashboard
 
-1. Copie le fichier d'exemple :
+1. Copie le fichier d'exemple :
    ```bash
    cp config.example.json data/config.json
    ```
+   *(Le répertoire `data/` sera créé automatiquement au premier lancement du programme.)*
 
-2. Édite `data/config.json` et remplace les valeurs :
+2. Édite `data/config.json` et remplace les valeurs :
    ```json
    {
      "port": 8090,
@@ -76,10 +77,11 @@ Tu obtiendras :
    }
    ```
 
-   ⚠️ **Important** :
-   - Le fichier `data/config.json` contient tes credentials — il est exclu du repo par `.gitignore`
-   - Ne partage jamais ce fichier
-   - Chaque utilisateur doit créer sa propre application EVE et remplir son propre config
+   ⚠️ **Important** :
+   - Le fichier `data/config.json` contient tes credentials — il est exclu du repo par `.gitignore`.
+   - Ne partage jamais ce fichier.
+   - Chaque utilisateur doit créer sa propre application EVE et remplir son propre config.
+
 
 ### Étape 3 : Lancer le dashboard
 
