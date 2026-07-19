@@ -47,8 +47,14 @@ Tu obtiendras :
 
 ### Étape 2 : Lancer le dashboard
 
+**Linux :**
 ```bash
 ./run_dashboard.sh
+```
+
+**Windows (PowerShell) :**
+```powershell
+./run_dashboard.ps1
 ```
 
 Le script compile le projet, configure les credentials au premier lancement et démarre le serveur.
