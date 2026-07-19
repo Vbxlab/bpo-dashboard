@@ -401,14 +401,35 @@ pub async fn api_sso_start(State(state): State<AppState>) -> Result<Json<serde_j
     let scopes = "esi-characters.read_blueprints.v1 esi-corporations.read_blueprints.v1";
     let sso_url = format!(
         "https://login.eveonline.com/v2/oauth/authorize/?response_type=code&redirect_uri={}&client_id={}&scope={}&state={}",
-        urlencoding::encode(&params.callback_url),
-        urlencoding::encode(&params.client_id),
+        urlencoding::encode(&sso.callback_url),
+        urlencoding::encode(&sso.client_id),
         urlencoding::encode(scopes),
         state_token,
     );
 
-    Json(serde_json::json!({"url": sso_url, "state": state_token}))
+    Ok(Json(serde_json::json!({"url": sso_url, "state": state_token})))
 }
+
+/// Manual SSO — user provides their own Client ID/Secret
+pub async fn api_sso_authorize(
+    State(state): State<AppState>,
+    Json(params): Json<AddCharacterParams>,
+) -> Json<serde_json::Value> {
+    let state_token = format!("{:016x}", rand::random::<u64>());
+
+    {
+        let s = state.read().await;
+        let pending = serde_json::json!({
+            "client_id": params.client_id,
+            "client_secret": params.client_secret,
+            "callback_url": params.callback_url,
+            "state": state_token,
+        });
+        let path = format!("{}/pending-sso-{}.json", s.config.data_dir, state_token);
+        let _ = std::fs::write(&path, serde_json::to_string_pretty(&pending).unwrap_or_default());
+    }
+
+    let scopes = "esi-characters.read_blueprints.v1 esi-corporations.read_blueprints.v1";
 
 /// SSO Callback — handles the redirect from EVE Online
 pub async fn api_sso_callback(
@@ -526,8 +547,8 @@ pub async fn api_bpcs(State(state): State<AppState>) -> Json<Vec<serde_json::Val
     // TODO: fetch BPCs from ESI (quantity != -1)
     // For now, return from cached data filtered to BPCs
     let state = state.read().await;
-    let mut results: Vec<serde_json::Value> = Vec::new();
-    for data in state.data.values() {
+    let results: Vec<serde_json::Value> = Vec::new();
+    for _data in state.data.values() {
         // BPO data doesn't contain BPCs — need separate ESI fetch
         // Placeholder: return empty for now
     }
