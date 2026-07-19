@@ -2,15 +2,15 @@
 
 Dashboard web pour les BPO (Blueprint Originals) EVE Online.
 
-- 🔍 Recherche instantanée avec filtres (ME, TE, hub, profit)
-- 📊 Résumé global (stats, top profits/pertes, investissement)
-- 📈 Classement par hub avec tri par marge %
-- 🔧 BPOs à améliorer (ME/TE) avec économie estimée
-- 📦 Bilan matériaux
-- 🔐 Multi-comptes EVE via SSO OAuth2
-- 🗑️ Ajout/suppression de personnages via l'interface
-- 🇫🇷 Interface en français
-- 📦 Binaire unique portable (~6 MB)
+- Recherche instantanée avec filtres (ME, TE, hub, profit)
+- Résumé global (stats, top profits/pertes, investissement)
+- Classement par hub avec tri par marge %
+- BPOs à améliorer (ME/TE) avec économie estimée
+- Bilan matériaux
+- Multi-comptes EVE via SSO OAuth2
+- Ajout/suppression de personnages via l'interface
+- Interface en français
+- Binaire unique portable (~6 MB)
 
 ## Installation
 
