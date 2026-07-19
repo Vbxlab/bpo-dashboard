@@ -70,7 +70,7 @@ Clique sur **"Rafraîchir les prix"** pour mettre à jour les prix depuis ESI.
 
 ## Portabilité
 
-Copie le dossier `bpo-dashboard/` entier (binaire + `data/`) sur n'importe quelle machine Linux. Aucune dépendance externe.
+Principalement testé sous Linux. Compile aussi sous Windows avec `cargo build --release` (le script `run_dashboard.sh` est Linux-only).
 
 ## Structure
 
