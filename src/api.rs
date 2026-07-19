@@ -430,6 +430,16 @@ pub async fn api_sso_authorize(
     }
 
     let scopes = "esi-characters.read_blueprints.v1 esi-corporations.read_blueprints.v1";
+    let sso_url = format!(
+        "https://login.eveonline.com/v2/oauth/authorize/?response_type=code&redirect_uri={}&client_id={}&scope={}&state={}",
+        urlencoding::encode(&params.callback_url),
+        urlencoding::encode(&params.client_id),
+        urlencoding::encode(scopes),
+        state_token,
+    );
+
+    Json(serde_json::json!({"url": sso_url, "state": state_token}))
+}
 
 /// SSO Callback — handles the redirect from EVE Online
 pub async fn api_sso_callback(
