@@ -63,6 +63,9 @@ async fn main() -> anyhow::Result<()> {
         config,
         data,
         refreshing: false,
+        bpcs_cache: Vec::new(),
+        corp_bpos_cache: Vec::new(),
+        corp_bpcs_cache: Vec::new(),
     }));
 
     let app = Router::new()

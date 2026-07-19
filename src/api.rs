@@ -16,6 +16,9 @@ pub struct AppStateInner {
     pub config: AppConfig,
     pub data: HashMap<String, BpoData>,
     pub refreshing: bool,
+    pub bpcs_cache: Vec<serde_json::Value>,
+    pub corp_bpos_cache: Vec<serde_json::Value>,
+    pub corp_bpcs_cache: Vec<serde_json::Value>,
 }
 
 // ─── Query / Body Params ──────────────────────────────────────
@@ -336,7 +339,8 @@ pub async fn api_refresh(
             s.config.characters.iter().enumerate().map(|(i, _)| i).collect()
         };
 
-        for idx in chars_to_refresh {
+        // 1. Fetch BPOs (existing)
+        for &idx in &chars_to_refresh {
             match crate::esi::fetch_and_build(&mut s.config.characters[idx]).await {
                 Ok(bpo_data) => {
                     let name = s.config.characters[idx].name.clone();
@@ -347,6 +351,83 @@ pub async fn api_refresh(
                 }
             }
         }
+
+        // 2. Fetch BPCs (perso)
+        let mut all_bpcs: Vec<serde_json::Value> = Vec::new();
+        for &idx in &chars_to_refresh {
+            let mut character = s.config.characters[idx].clone();
+            if let Err(e) = crate::esi::refresh_token(&mut character).await {
+                eprintln!("BPC refresh: token failed for {}: {}", character.name, e);
+                continue;
+            }
+            let token = character.tokens.access_token.clone();
+            match crate::esi::fetch_bpcs(character.id, &token).await {
+                Ok(bpcs) => {
+                    let type_ids: Vec<i64> = bpcs.iter()
+                        .filter_map(|bp| bp.get("type_id").and_then(|v| v.as_i64()))
+                        .collect();
+                    let mut enriched = enrich_blueprints(bpcs, type_ids, &character.name, true).await;
+                    all_bpcs.append(&mut enriched);
+                }
+                Err(e) => eprintln!("BPC refresh failed for {}: {}", character.name, e),
+            }
+        }
+        s.bpcs_cache = all_bpcs;
+
+        // 3. Fetch Corp BPOs + BPCs
+        let mut all_corp_bpos: Vec<serde_json::Value> = Vec::new();
+        let mut all_corp_bpcs: Vec<serde_json::Value> = Vec::new();
+        let mut seen_corps: std::collections::HashSet<i64> = std::collections::HashSet::new();
+
+        for &idx in &chars_to_refresh {
+            let mut character = s.config.characters[idx].clone();
+            if let Err(e) = crate::esi::refresh_token(&mut character).await {
+                eprintln!("Corp refresh: token failed for {}: {}", character.name, e);
+                continue;
+            }
+            let token = character.tokens.access_token.clone();
+
+            let corp_id = match crate::esi::fetch_corporation_id(character.id, &token).await {
+                Ok(id) => id,
+                Err(e) => {
+                    eprintln!("Corp refresh: can't get corp_id for {}: {}", character.name, e);
+                    continue;
+                }
+            };
+            if !seen_corps.insert(corp_id) { continue; }
+
+            // Corp BPOs
+            match crate::esi::fetch_corp_bpos(corp_id, &token).await {
+                Ok(bpos) => {
+                    let type_ids: Vec<i64> = bpos.iter()
+                        .filter_map(|bp| bp.get("type_id").and_then(|v| v.as_i64()))
+                        .collect();
+                    let mut enriched = enrich_blueprints(bpos, type_ids, &character.name, false).await;
+                    for e in enriched.iter_mut() {
+                        e["corporation_id"] = serde_json::Value::from(corp_id);
+                    }
+                    all_corp_bpos.append(&mut enriched);
+                }
+                Err(e) => eprintln!("Corp BPO refresh failed for corp {}: {}", corp_id, e),
+            }
+
+            // Corp BPCs
+            match crate::esi::fetch_corp_bpcs(corp_id, &token).await {
+                Ok(bpcs) => {
+                    let type_ids: Vec<i64> = bpcs.iter()
+                        .filter_map(|bp| bp.get("type_id").and_then(|v| v.as_i64()))
+                        .collect();
+                    let mut enriched = enrich_blueprints(bpcs, type_ids, &character.name, true).await;
+                    for e in enriched.iter_mut() {
+                        e["corporation_id"] = serde_json::Value::from(corp_id);
+                    }
+                    all_corp_bpcs.append(&mut enriched);
+                }
+                Err(e) => eprintln!("Corp BPC refresh failed for corp {}: {}", corp_id, e),
+            }
+        }
+        s.corp_bpos_cache = all_corp_bpos;
+        s.corp_bpcs_cache = all_corp_bpcs;
 
         let config_path = AppConfig::default_path();
         let _ = s.config.save(&config_path);
@@ -553,7 +634,7 @@ pub async fn api_sso_callback(
 
 // ─── BPC ──────────────────────────────────────────────────────
 
-/// Enrichit une liste de blueprints bruts ESI avec noms, product info et prix par hub
+/// Enrichit une liste de blueprints bruts ESI avec noms, product info, prix par hub et coût matériaux
 async fn enrich_blueprints(
     bps_raw: Vec<serde_json::Value>,
     bp_type_ids: Vec<i64>,
@@ -565,42 +646,43 @@ async fn enrich_blueprints(
     // 1. Resolve blueprint type names
     let names = crate::esi::resolve_type_names(&bp_type_ids).await.unwrap_or_default();
 
-    // 2. Fetch manufacturing data to get productTypeID
+    // 2. Fetch manufacturing data to get productTypeID + materials
     let bp_mfg = crate::esi::fetch_bp_manufacturing(&bp_type_ids).await.unwrap_or_default();
 
-    // 3. Collect product type IDs for pricing
-    let mut product_ids: Vec<i64> = Vec::new();
+    // 3. Collect all type IDs (products + materials) for pricing + names
+    let mut all_type_ids: Vec<i64> = Vec::new();
     for (_tid, mfg) in &bp_mfg {
         if let Some(details) = mfg.get("blueprintDetails") {
             if let Some(pid) = details.get("productTypeID").and_then(|v| v.as_i64()) {
-                if pid != 0 { product_ids.push(pid); }
+                if pid != 0 { all_type_ids.push(pid); }
+            }
+        }
+        if let Some(materials) = mfg.get("activityMaterials").and_then(|v| v.get("1")) {
+            if let Some(arr) = materials.as_array() {
+                for mat in arr {
+                    if let Some(mid) = mat.get("typeid").and_then(|v| v.as_i64()) {
+                        all_type_ids.push(mid);
+                    }
+                }
             }
         }
     }
-    product_ids.sort();
-    product_ids.dedup();
+    all_type_ids.sort();
+    all_type_ids.dedup();
 
-    // 4. Resolve product names
-    let product_names = if product_ids.is_empty() {
-        HashMap::new()
-    } else {
-        crate::esi::resolve_type_names(&product_ids).await.unwrap_or_default()
-    };
+    // 4. Resolve all names (products + materials)
+    let all_names = crate::esi::resolve_type_names(&all_type_ids).await.unwrap_or_default();
 
-    // 5. Fetch sell prices for products in all hubs
-    let hub_prices = if product_ids.is_empty() {
-        HashMap::new()
-    } else {
-        crate::esi::fetch_hub_prices(&product_ids).await.unwrap_or_default()
-    };
+    // 5. Fetch sell prices for all types in all hubs (products + materials)
+    let hub_prices = crate::esi::fetch_hub_prices(&all_type_ids).await.unwrap_or_default();
 
     // 6. Build enriched entries
     let mut results: Vec<serde_json::Value> = Vec::new();
     for bp in &bps_raw {
         let tid = bp.get("type_id").and_then(|v| v.as_i64()).unwrap_or(0);
         let name = names.get(&tid).cloned().unwrap_or_else(|| format!("Type {}", tid));
-        let me = bp.get("material_efficiency").and_then(|v| v.as_i64()).unwrap_or(0);
-        let te = bp.get("time_efficiency").and_then(|v| v.as_i64()).unwrap_or(0);
+        let me = bp.get("material_efficiency").and_then(|v| v.as_i64()).unwrap_or(0) as i32;
+        let te = bp.get("time_efficiency").and_then(|v| v.as_i64()).unwrap_or(0) as i32;
         let qty = bp.get("quantity").and_then(|v| v.as_i64()).unwrap_or(0);
         let location = bp.get("location_id").and_then(|v| v.as_i64()).unwrap_or(0);
         let runs = bp.get("runs").and_then(|v| v.as_i64()).unwrap_or(0);
@@ -609,12 +691,12 @@ async fn enrich_blueprints(
         let mfg = bp_mfg.get(&tid);
         let details = mfg.and_then(|m| m.get("blueprintDetails"));
         let product_id = details.and_then(|d| d.get("productTypeID").and_then(|v| v.as_i64())).unwrap_or(0);
-        let product_name = product_names.get(&product_id).cloned()
+        let product_name = all_names.get(&product_id).cloned()
             .or_else(|| details.and_then(|d| d.get("productTypeName").and_then(|v| v.as_str())).map(String::from))
             .unwrap_or_else(|| "N/A".to_string());
         let product_qty = details.and_then(|d| d.get("productQuantity").and_then(|v| v.as_i64())).unwrap_or(0);
 
-        // Prices per hub
+        // Prices per hub for product
         let mut price_jita = 0.0; let mut price_amarr = 0.0;
         let mut price_dodixie = 0.0; let mut price_rens = 0.0;
         if product_id != 0 {
@@ -622,6 +704,31 @@ async fn enrich_blueprints(
             price_amarr = hub_prices.get("Amarr").and_then(|h| h.get(&product_id)).copied().unwrap_or(0.0);
             price_dodixie = hub_prices.get("Dodixie").and_then(|h| h.get(&product_id)).copied().unwrap_or(0.0);
             price_rens = hub_prices.get("Rens").and_then(|h| h.get(&product_id)).copied().unwrap_or(0.0);
+        }
+
+        // Material cost per hub (apply ME)
+        let mut mat_cost_jita = 0.0; let mut mat_cost_amarr = 0.0;
+        let mut mat_cost_dodixie = 0.0; let mut mat_cost_rens = 0.0;
+        if let Some(materials) = mfg.and_then(|m| m.get("activityMaterials").and_then(|v| v.get("1"))) {
+            if let Some(arr) = materials.as_array() {
+                for mat in arr {
+                    let mid = mat.get("typeid").and_then(|v| v.as_i64()).unwrap_or(0);
+                    let base_qty = mat.get("quantity").and_then(|v| v.as_i64()).unwrap_or(0);
+                    let adjusted_qty = if me > 0 {
+                        ((base_qty as f64 * (1.0 - me as f64 / 100.0)).ceil() as i64).max(1)
+                    } else {
+                        base_qty
+                    };
+                    let pj = hub_prices.get("Jita").and_then(|h| h.get(&mid)).copied().unwrap_or(0.0);
+                    let pa = hub_prices.get("Amarr").and_then(|h| h.get(&mid)).copied().unwrap_or(0.0);
+                    let pd = hub_prices.get("Dodixie").and_then(|h| h.get(&mid)).copied().unwrap_or(0.0);
+                    let pr = hub_prices.get("Rens").and_then(|h| h.get(&mid)).copied().unwrap_or(0.0);
+                    mat_cost_jita += pj * adjusted_qty as f64;
+                    mat_cost_amarr += pa * adjusted_qty as f64;
+                    mat_cost_dodixie += pd * adjusted_qty as f64;
+                    mat_cost_rens += pr * adjusted_qty as f64;
+                }
+            }
         }
 
         let mut entry = serde_json::json!({
@@ -639,6 +746,10 @@ async fn enrich_blueprints(
             "price_amarr": price_amarr,
             "price_dodixie": price_dodixie,
             "price_rens": price_rens,
+            "mat_cost_jita": mat_cost_jita,
+            "mat_cost_amarr": mat_cost_amarr,
+            "mat_cost_dodixie": mat_cost_dodixie,
+            "mat_cost_rens": mat_cost_rens,
         });
         if is_bpc {
             entry["runs"] = serde_json::Value::from(runs);
@@ -655,113 +766,19 @@ async fn enrich_blueprints(
 
 pub async fn api_bpcs(State(state): State<AppState>) -> Json<Vec<serde_json::Value>> {
     let state = state.read().await;
-    let mut all_results: Vec<serde_json::Value> = Vec::new();
-
-    for char_config in &state.config.characters {
-        let mut character = char_config.clone();
-        if let Err(e) = crate::esi::refresh_token(&mut character).await {
-            eprintln!("BPC: token refresh failed for {}: {}", character.name, e);
-            continue;
-        }
-        let token = character.tokens.access_token.clone();
-
-        match crate::esi::fetch_bpcs(character.id, &token).await {
-            Ok(bpcs) => {
-                let type_ids: Vec<i64> = bpcs.iter()
-                    .filter_map(|bp| bp.get("type_id").and_then(|v| v.as_i64()))
-                    .collect();
-                let mut enriched = enrich_blueprints(bpcs, type_ids, &character.name, true).await;
-                all_results.append(&mut enriched);
-            }
-            Err(e) => eprintln!("BPC fetch failed for {}: {}", character.name, e),
-        }
-    }
-
-    Json(all_results)
+    Json(state.bpcs_cache.clone())
 }
 
 // ─── Corp BPO/BPC ──────────────────────────────────────────────
 
 pub async fn api_corp_bpos(State(state): State<AppState>) -> Json<Vec<serde_json::Value>> {
     let state = state.read().await;
-    let mut all_results: Vec<serde_json::Value> = Vec::new();
-    let mut seen_corps: std::collections::HashSet<i64> = std::collections::HashSet::new();
-
-    for char_config in &state.config.characters {
-        let mut character = char_config.clone();
-        if let Err(e) = crate::esi::refresh_token(&mut character).await {
-            eprintln!("Corp BPO: token refresh failed for {}: {}", character.name, e);
-            continue;
-        }
-        let token = character.tokens.access_token.clone();
-
-        let corp_id = match crate::esi::fetch_corporation_id(character.id, &token).await {
-            Ok(id) => id,
-            Err(e) => {
-                eprintln!("Corp BPO: can't get corp_id for {}: {}", character.name, e);
-                continue;
-            }
-        };
-
-        if !seen_corps.insert(corp_id) { continue; }
-
-        match crate::esi::fetch_corp_bpos(corp_id, &token).await {
-            Ok(bpos) => {
-                let type_ids: Vec<i64> = bpos.iter()
-                    .filter_map(|bp| bp.get("type_id").and_then(|v| v.as_i64()))
-                    .collect();
-                let mut enriched = enrich_blueprints(bpos, type_ids, &character.name, false).await;
-                for e in enriched.iter_mut() {
-                    e["corporation_id"] = serde_json::Value::from(corp_id);
-                }
-                all_results.append(&mut enriched);
-            }
-            Err(e) => eprintln!("Corp BPO fetch failed for corp {}: {}", corp_id, e),
-        }
-    }
-
-    Json(all_results)
+    Json(state.corp_bpos_cache.clone())
 }
 
 pub async fn api_corp_bpcs(State(state): State<AppState>) -> Json<Vec<serde_json::Value>> {
     let state = state.read().await;
-    let mut all_results: Vec<serde_json::Value> = Vec::new();
-    let mut seen_corps: std::collections::HashSet<i64> = std::collections::HashSet::new();
-
-    for char_config in &state.config.characters {
-        let mut character = char_config.clone();
-        if let Err(e) = crate::esi::refresh_token(&mut character).await {
-            eprintln!("Corp BPC: token refresh failed for {}: {}", character.name, e);
-            continue;
-        }
-        let token = character.tokens.access_token.clone();
-
-        let corp_id = match crate::esi::fetch_corporation_id(character.id, &token).await {
-            Ok(id) => id,
-            Err(e) => {
-                eprintln!("Corp BPC: can't get corp_id for {}: {}", character.name, e);
-                continue;
-            }
-        };
-
-        if !seen_corps.insert(corp_id) { continue; }
-
-        match crate::esi::fetch_corp_bpcs(corp_id, &token).await {
-            Ok(bpcs) => {
-                let type_ids: Vec<i64> = bpcs.iter()
-                    .filter_map(|bp| bp.get("type_id").and_then(|v| v.as_i64()))
-                    .collect();
-                let mut enriched = enrich_blueprints(bpcs, type_ids, &character.name, true).await;
-                for e in enriched.iter_mut() {
-                    e["corporation_id"] = serde_json::Value::from(corp_id);
-                }
-                all_results.append(&mut enriched);
-            }
-            Err(e) => eprintln!("Corp BPC fetch failed for corp {}: {}", corp_id, e),
-        }
-    }
-
-    Json(all_results)
+    Json(state.corp_bpcs_cache.clone())
 }
 
 // ─── Quit ─────────────────────────────────────────────────────
