@@ -45,39 +45,13 @@ Tu obtiendras :
 - **Client ID** : une chaîne comme `6a951f4d0e484cbeb8fd98d2815b5975`
 - **Secret** : une chaîne comme `eat_1N...` (**garde-le secret !**)
 
-### Étape 2 : Configurer le dashboard
-
-1. Copie le fichier d'exemple :
-   ```bash
-   cp config.example.json data/config.json
-   ```
-   *(Le répertoire `data/` sera créé automatiquement au premier lancement du programme.)*
-
-2. Édite `data/config.json` et remplace les valeurs :
-   ```json
-   {
-     "port": 8090,
-     "data_dir": "./data",
-     "default_sso": {
-       "client_id": "TON_CLIENT_ID_ICI",
-       "client_secret": "TON_SECRET_ICI",
-       "callback_url": "http://localhost:8090/api/sso/callback"
-     },
-     "characters": []
-   }
-   ```
-
-   ⚠️ **Important** :
-   - Le fichier `data/config.json` contient tes credentials — il est exclu du repo par `.gitignore`.
-   - Ne partage jamais ce fichier.
-   - Chaque utilisateur doit créer sa propre application EVE et remplir son propre config.
-
-
-### Étape 3 : Lancer le dashboard
+### Étape 2 : Lancer le dashboard
 
 ```bash
 ./run_dashboard.sh
 ```
+
+Le script compile le projet, configure les credentials au premier lancement et démarre le serveur.
 
 Ouvre `http://localhost:8090` dans ton navigateur.
 
