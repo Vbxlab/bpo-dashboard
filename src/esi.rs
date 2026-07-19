@@ -110,7 +110,11 @@ pub async fn fetch_bpcs(char_id: i64, token: &str) -> Result<Vec<serde_json::Val
         if arr_len < 500 { break; }
         page += 1;
     }
-    Ok(all.into_iter().filter(|bp| bp.get("quantity").and_then(|v| v.as_i64()) != Some(-1)).collect())
+    Ok(all.into_iter().filter(|bp| {
+        let qty = bp.get("quantity").and_then(|v| v.as_i64()).unwrap_or(0);
+        let runs = bp.get("runs").and_then(|v| v.as_i64()).unwrap_or(0);
+        qty != -1 && runs > 0
+    }).collect())
 }
 
 /// Fetch corp BPOs — requires esi-corporations.read_blueprints.v1
@@ -146,7 +150,11 @@ pub async fn fetch_corp_bpcs(corp_id: i64, token: &str) -> Result<Vec<serde_json
         if arr_len < 500 { break; }
         page += 1;
     }
-    Ok(all.into_iter().filter(|bp| bp.get("quantity").and_then(|v| v.as_i64()) != Some(-1)).collect())
+    Ok(all.into_iter().filter(|bp| {
+        let qty = bp.get("quantity").and_then(|v| v.as_i64()).unwrap_or(0);
+        let runs = bp.get("runs").and_then(|v| v.as_i64()).unwrap_or(0);
+        qty != -1 && runs > 0
+    }).collect())
 }
 
 // ─── Resolve Type Names ───────────────────────────────────────
