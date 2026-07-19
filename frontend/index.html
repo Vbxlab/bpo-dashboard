@@ -876,7 +876,7 @@ async function loadBpc() {
       return (b['price_' + hub] || 0) - (a['price_' + hub] || 0);
     });
     const hubLabel = hub.charAt(0).toUpperCase() + hub.slice(1);
-    let html = '<table><thead><tr><th>BPC</th><th>Produit</th><th>Runs</th><th>ME</th><th>TE</th><th>Qty</th><th>Prix vente (' + hubLabel + ')</th><th>Coût matériaux</th><th>Profit</th><th>Perso</th></tr></thead><tbody>';
+    let html = '<table><thead><tr><th>BPC</th><th>Produit</th><th>Runs</th><th>ME</th><th>TE</th><th>Prix vente (' + hubLabel + ')</th><th>Coût matériaux</th><th>Profit</th><th>Perso</th></tr></thead><tbody>';
     for (const b of bpcs) {
       const price = b['price_' + hub] || 0;
       const matCost = b['mat_cost_' + hub] || 0;
@@ -885,7 +885,7 @@ async function loadBpc() {
       const matStr = matCost > 0 ? matCost.toLocaleString('fr-FR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' ISK' : '—';
       const profitStr = profit !== 0 ? (profit > 0 ? '+' : '') + profit.toLocaleString('fr-FR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' ISK' : '—';
       const pClass = profit > 0 ? 'profit-cell' : (profit < 0 ? 'loss-cell' : '');
-      html += '<tr><td>' + esc(b.bp_name || 'Unknown') + '</td><td>' + esc(b.product_name || 'N/A') + '</td><td>' + (b.runs || 0) + '</td><td class="' + (b.me<10?'me-low':'me-ok') + '">' + (b.me||0) + '/10</td><td class="' + (b.te<20?'te-low':'te-ok') + '">' + (b.te||0) + '/20</td><td>' + (b.quantity||0) + '</td><td>' + priceStr + '</td><td>' + matStr + '</td><td class="' + pClass + '">' + profitStr + '</td><td>' + esc(b.character || '') + '</td></tr>';
+      html += '<tr><td>' + esc(b.bp_name || 'Unknown') + '</td><td>' + esc(b.product_name || 'N/A') + '</td><td>' + (b.runs || 0) + '</td><td class="' + (b.me<10?'me-low':'me-ok') + '">' + (b.me||0) + '/10</td><td class="' + (b.te<20?'te-low':'te-ok') + '">' + (b.te||0) + '/20</td><td>' + priceStr + '</td><td>' + matStr + '</td><td class="' + pClass + '">' + profitStr + '</td><td>' + esc(b.character || '') + '</td></tr>';
     }
     html += '</tbody></table>';
     document.getElementById('bpcContent').innerHTML = html;
@@ -919,7 +919,7 @@ async function loadCorp() {
     bpos.sort(sortFn);
     bpcs.sort(sortFn);
     let html = '<h3>BPO Corp (' + bpos.length + ')</h3>';
-    html += '<table><thead><tr><th>BPO</th><th>Produit</th><th>ME</th><th>TE</th><th>Qty</th><th>Prix vente (' + hubLabel + ')</th><th>Coût matériaux</th><th>Profit</th><th>Perso</th></tr></thead><tbody>';
+    html += '<table><thead><tr><th>BPO</th><th>Produit</th><th>ME</th><th>TE</th><th>Prix vente (' + hubLabel + ')</th><th>Coût matériaux</th><th>Profit</th><th>Perso</th></tr></thead><tbody>';
     for (const b of bpos) {
       const price = b['price_' + hub] || 0;
       const matCost = b['mat_cost_' + hub] || 0;
@@ -932,7 +932,7 @@ async function loadCorp() {
     }
     html += '</tbody></table>';
     html += '<h3 style="margin-top:24px">BPC Corp (' + bpcs.length + ')</h3>';
-    html += '<table><thead><tr><th>BPC</th><th>Produit</th><th>Runs</th><th>ME</th><th>TE</th><th>Qty</th><th>Prix vente (' + hubLabel + ')</th><th>Coût matériaux</th><th>Profit</th><th>Perso</th></tr></thead><tbody>';
+    html += '<table><thead><tr><th>BPC</th><th>Produit</th><th>Runs</th><th>ME</th><th>TE</th><th>Prix vente (' + hubLabel + ')</th><th>Coût matériaux</th><th>Profit</th><th>Perso</th></tr></thead><tbody>';
     for (const b of bpcs) {
       const price = b['price_' + hub] || 0;
       const matCost = b['mat_cost_' + hub] || 0;
@@ -941,7 +941,7 @@ async function loadCorp() {
       const matStr = matCost > 0 ? matCost.toLocaleString('fr-FR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' ISK' : '—';
       const profitStr = profit !== 0 ? (profit > 0 ? '+' : '') + profit.toLocaleString('fr-FR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' ISK' : '—';
       const pClass = profit > 0 ? 'profit-cell' : (profit < 0 ? 'loss-cell' : '');
-      html += '<tr><td>' + esc(b.bp_name || 'Unknown') + '</td><td>' + esc(b.product_name || 'N/A') + '</td><td>' + (b.runs||0) + '</td><td>' + (b.me||0) + '/10</td><td>' + (b.te||0) + '/20</td><td>' + (b.quantity||0) + '</td><td>' + priceStr + '</td><td>' + matStr + '</td><td class="' + pClass + '">' + profitStr + '</td><td>' + esc(b.character || '') + '</td></tr>';
+      html += '<tr><td>' + esc(b.bp_name || 'Unknown') + '</td><td>' + esc(b.product_name || 'N/A') + '</td><td>' + (b.runs||0) + '</td><td>' + (b.me||0) + '/10</td><td>' + (b.te||0) + '/20</td><td>' + priceStr + '</td><td>' + matStr + '</td><td class="' + pClass + '">' + profitStr + '</td><td>' + esc(b.character || '') + '</td></tr>';
     }
     html += '</tbody></table>';
     document.getElementById('corpContent').innerHTML = html;
