@@ -70,7 +70,10 @@ Clique sur **"Rafraîchir les prix"** pour mettre à jour les prix depuis ESI.
 
 ## Portabilité
 
-Principalement testé sous Linux. Compile aussi sous Windows avec `cargo build --release` (le script `run_dashboard.sh` est Linux-only).
+Principalement testé sous Linux. Compile aussi sous Windows avec `cargo build --release`.
+
+- Linux : `./run_dashboard.sh`
+- Windows : `./run_dashboard.ps1`
 
 ## Structure
 
