@@ -86,8 +86,17 @@ async fn fetch_bpos(char_id: i64, token: &str) -> Result<Vec<serde_json::Value>>
     Ok(all.into_iter().filter(|bp| bp.get("quantity").and_then(|v| v.as_i64()) == Some(-1)).collect())
 }
 
+/// Fetch corporation_id for a character
+pub async fn fetch_corporation_id(char_id: i64, token: &str) -> Result<i64> {
+    let url = format!("{}/characters/{}/?datasource=tranquility", ESI_BASE, char_id);
+    let data = esi_get(&url, Some(token)).await?;
+    data.get("corporation_id")
+        .and_then(|v| v.as_i64())
+        .context("missing corporation_id")
+}
+
 /// Fetch BPCs (Blueprint Copies) — quantity != -1, runs > 0
-async fn fetch_bpcs(char_id: i64, token: &str) -> Result<Vec<serde_json::Value>> {
+pub async fn fetch_bpcs(char_id: i64, token: &str) -> Result<Vec<serde_json::Value>> {
     let mut all = Vec::new();
     let mut page = 1;
     loop {
@@ -105,7 +114,7 @@ async fn fetch_bpcs(char_id: i64, token: &str) -> Result<Vec<serde_json::Value>>
 }
 
 /// Fetch corp BPOs — requires esi-corporations.read_blueprints.v1
-async fn fetch_corp_bpos(corp_id: i64, token: &str) -> Result<Vec<serde_json::Value>> {
+pub async fn fetch_corp_bpos(corp_id: i64, token: &str) -> Result<Vec<serde_json::Value>> {
     let mut all = Vec::new();
     let mut page = 1;
     loop {
@@ -123,7 +132,7 @@ async fn fetch_corp_bpos(corp_id: i64, token: &str) -> Result<Vec<serde_json::Va
 }
 
 /// Fetch corp BPCs
-async fn fetch_corp_bpcs(corp_id: i64, token: &str) -> Result<Vec<serde_json::Value>> {
+pub async fn fetch_corp_bpcs(corp_id: i64, token: &str) -> Result<Vec<serde_json::Value>> {
     let mut all = Vec::new();
     let mut page = 1;
     loop {
@@ -142,7 +151,7 @@ async fn fetch_corp_bpcs(corp_id: i64, token: &str) -> Result<Vec<serde_json::Va
 
 // ─── Resolve Type Names ───────────────────────────────────────
 
-async fn resolve_type_names(type_ids: &[i64]) -> Result<HashMap<i64, String>> {
+pub async fn resolve_type_names(type_ids: &[i64]) -> Result<HashMap<i64, String>> {
     let mut names = HashMap::new();
     // Batch via universe/names endpoint
     let client = reqwest::Client::new();
@@ -179,7 +188,7 @@ async fn resolve_type_names(type_ids: &[i64]) -> Result<HashMap<i64, String>> {
 
 // ─── Fetch Manufacturing Data ─────────────────────────────────
 
-async fn fetch_bp_manufacturing(type_ids: &[i64]) -> Result<HashMap<i64, serde_json::Value>> {
+pub async fn fetch_bp_manufacturing(type_ids: &[i64]) -> Result<HashMap<i64, serde_json::Value>> {
     let client = reqwest::Client::new();
     let mut bp_mfg = HashMap::new();
     for &tid in type_ids {
@@ -205,7 +214,7 @@ async fn fetch_bp_manufacturing(type_ids: &[i64]) -> Result<HashMap<i64, serde_j
 
 // ─── Fetch Market Prices ──────────────────────────────────────
 
-async fn fetch_hub_prices(type_ids: &[i64]) -> Result<HashMap<String, HashMap<i64, f64>>> {
+pub async fn fetch_hub_prices(type_ids: &[i64]) -> Result<HashMap<String, HashMap<i64, f64>>> {
     let mut hub_prices: HashMap<String, HashMap<i64, f64>> = HashMap::new();
     for (hub_name, region_id) in &HUBS {
         let mut prices = HashMap::new();

@@ -358,10 +358,32 @@ tr:hover { background: var(--surface2); }
   <div class="page" id="page-improvements"><div id="improvementsContent"></div></div>
 
   <!-- BPC -->
-  <div class="page" id="page-bpc"><div id="bpcContent"></div></div>
+  <div class="page" id="page-bpc">
+    <div style="padding:8px 16px;display:flex;gap:12px;align-items:center">
+      <label><strong>Hub :</strong></label>
+      <select id="bpcHubSelect" onchange="loadBpc()">
+        <option value="jita">Jita</option>
+        <option value="amarr">Amarr</option>
+        <option value="dodixie">Dodixie</option>
+        <option value="rens">Rens</option>
+      </select>
+    </div>
+    <div id="bpcContent"></div>
+  </div>
 
   <!-- Corp -->
-  <div class="page" id="page-corp"><div id="corpContent"></div></div>
+  <div class="page" id="page-corp">
+    <div style="padding:8px 16px;display:flex;gap:12px;align-items:center">
+      <label><strong>Hub :</strong></label>
+      <select id="corpHubSelect" onchange="loadCorp()">
+        <option value="jita">Jita</option>
+        <option value="amarr">Amarr</option>
+        <option value="dodixie">Dodixie</option>
+        <option value="rens">Rens</option>
+      </select>
+    </div>
+    <div id="corpContent"></div>
+  </div>
 
   <!-- MATERIALS -->
 </div>
@@ -824,42 +846,62 @@ async function refreshData() {
 }
 
 async function loadBpc() {
-  const resp = await fetch('/api/bpcs');
-  const bpcs = await resp.json();
-  if (bpcs.length === 0) {
-    document.getElementById('bpcContent').innerHTML = '<div class="empty"><h2>Aucun BPC</h2><p>Les BPCs (Blueprint Copies) seront affichés ici.</p></div>';
-    return;
+  const hub = document.getElementById('bpcHubSelect')?.value || 'jita';
+  document.getElementById('bpcContent').innerHTML = '<div class="empty"><h2>⏳ Chargement des BPC...</h2><p>Récupération des blueprints et prix depuis ESI, patientez.</p></div>';
+  try {
+    const resp = await fetch('/api/bpcs');
+    const bpcs = await resp.json();
+    if (bpcs.length === 0) {
+      document.getElementById('bpcContent').innerHTML = '<div class="empty"><h2>Aucun BPC</h2><p>Les BPCs (Blueprint Copies) seront affichés ici.</p></div>';
+      return;
+    }
+    const hubLabel = hub.charAt(0).toUpperCase() + hub.slice(1);
+    let html = '<table><thead><tr><th>BPC</th><th>Produit</th><th>Runs</th><th>ME</th><th>TE</th><th>Qty</th><th>Prix vente (' + hubLabel + ')</th><th>Perso</th></tr></thead><tbody>';
+    for (const b of bpcs) {
+      const price = b['price_' + hub] || 0;
+      const priceStr = price > 0 ? price.toLocaleString('fr-FR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' ISK' : '—';
+      html += '<tr><td>' + esc(b.bp_name || 'Unknown') + '</td><td>' + esc(b.product_name || 'N/A') + '</td><td>' + (b.runs || 0) + '</td><td class="' + (b.me<10?'me-low':'me-ok') + '">' + (b.me||0) + '/10</td><td class="' + (b.te<20?'te-low':'te-ok') + '">' + (b.te||0) + '/20</td><td>' + (b.quantity||0) + '</td><td>' + priceStr + '</td><td>' + esc(b.character || '') + '</td></tr>';
+    }
+    html += '</tbody></table>';
+    document.getElementById('bpcContent').innerHTML = html;
+  } catch(e) {
+    document.getElementById('bpcContent').innerHTML = '<div class="empty"><h2>Erreur</h2><p>' + esc(e.message) + '</p></div>';
   }
-  let html = '<table><thead><tr><th>BPC</th><th>Runs</th><th>ME</th><th>TE</th><th>Location</th></tr></thead><tbody>';
-  for (const b of bpcs) {
-    html += '<tr><td>' + esc(b.bp_name || 'Unknown') + '</td><td>' + (b.runs || 0) + '</td><td class="' + (b.me<10?'me-low':'me-ok') + '">' + (b.me||0) + '/10</td><td class="' + (b.te<20?'te-low':'te-ok') + '">' + (b.te||0) + '/20</td><td>' + esc(b.location_name || '') + '</td></tr>';
-  }
-  html += '</tbody></table>';
-  document.getElementById('bpcContent').innerHTML = html;
 }
 
 async function loadCorp() {
-  const resp = await fetch('/api/corp/bpos');
-  const bpos = await resp.json();
-  const resp2 = await fetch('/api/corp/bpcs');
-  const bpcs = await resp2.json();
-  if (bpos.length === 0 && bpcs.length === 0) {
-    document.getElementById('corpContent').innerHTML = '<div class="empty"><h2>Aucune donnée corp</h2><p>Les BPO/BPC de corporation seront affichés ici. Assurez-vous que votre personnage a les droits de corp et le scope esi-corporations.read_blueprints.v1.</p></div>';
-    return;
+  const hub = document.getElementById('corpHubSelect')?.value || 'jita';
+  document.getElementById('corpContent').innerHTML = '<div class="empty"><h2>⏳ Chargement des données corp...</h2><p>Récupération des blueprints et prix corporation depuis ESI, patientez.</p></div>';
+  try {
+    const hubLabel = hub.charAt(0).toUpperCase() + hub.slice(1);
+    const resp = await fetch('/api/corp/bpos');
+    const bpos = await resp.json();
+    const resp2 = await fetch('/api/corp/bpcs');
+    const bpcs = await resp2.json();
+    if (bpos.length === 0 && bpcs.length === 0) {
+      document.getElementById('corpContent').innerHTML = '<div class="empty"><h2>Aucune donnée corp</h2><p>Les BPO/BPC de corporation seront affichés ici. Assurez-vous que votre personnage a les droits de corp et le scope esi-corporations.read_blueprints.v1.</p></div>';
+      return;
+    }
+    let html = '<h3>BPO Corp (' + bpos.length + ')</h3>';
+    html += '<table><thead><tr><th>BPO</th><th>Produit</th><th>ME</th><th>TE</th><th>Qty</th><th>Prix vente (' + hubLabel + ')</th><th>Perso</th></tr></thead><tbody>';
+    for (const b of bpos) {
+      const price = b['price_' + hub] || 0;
+      const priceStr = price > 0 ? price.toLocaleString('fr-FR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' ISK' : '—';
+      html += '<tr><td>' + esc(b.bp_name || 'Unknown') + '</td><td>' + esc(b.product_name || 'N/A') + '</td><td>' + (b.me||0) + '/10</td><td>' + (b.te||0) + '/20</td><td>' + (b.quantity||0) + '</td><td>' + priceStr + '</td><td>' + esc(b.character || '') + '</td></tr>';
+    }
+    html += '</tbody></table>';
+    html += '<h3 style="margin-top:24px">BPC Corp (' + bpcs.length + ')</h3>';
+    html += '<table><thead><tr><th>BPC</th><th>Produit</th><th>Runs</th><th>ME</th><th>TE</th><th>Qty</th><th>Prix vente (' + hubLabel + ')</th><th>Perso</th></tr></thead><tbody>';
+    for (const b of bpcs) {
+      const price = b['price_' + hub] || 0;
+      const priceStr = price > 0 ? price.toLocaleString('fr-FR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' ISK' : '—';
+      html += '<tr><td>' + esc(b.bp_name || 'Unknown') + '</td><td>' + esc(b.product_name || 'N/A') + '</td><td>' + (b.runs||0) + '</td><td>' + (b.me||0) + '/10</td><td>' + (b.te||0) + '/20</td><td>' + (b.quantity||0) + '</td><td>' + priceStr + '</td><td>' + esc(b.character || '') + '</td></tr>';
+    }
+    html += '</tbody></table>';
+    document.getElementById('corpContent').innerHTML = html;
+  } catch(e) {
+    document.getElementById('corpContent').innerHTML = '<div class="empty"><h2>Erreur</h2><p>' + esc(e.message) + '</p></div>';
   }
-  let html = '<h3>BPO Corp (' + bpos.length + ')</h3>';
-  html += '<table><thead><tr><th>BPO</th><th>ME</th><th>TE</th></tr></thead><tbody>';
-  for (const b of bpos) {
-    html += '<tr><td>' + esc(b.bp_name || 'Unknown') + '</td><td>' + (b.me||0) + '/10</td><td>' + (b.te||0) + '/20</td></tr>';
-  }
-  html += '</tbody></table>';
-  html += '<h3 style="margin-top:24px">BPC Corp (' + bpcs.length + ')</h3>';
-  html += '<table><thead><tr><th>BPC</th><th>Runs</th><th>ME</th><th>TE</th></tr></thead><tbody>';
-  for (const b of bpcs) {
-    html += '<tr><td>' + esc(b.bp_name || 'Unknown') + '</td><td>' + (b.runs||0) + '</td><td>' + (b.me||0) + '/10</td><td>' + (b.te||0) + '/20</td></tr>';
-  }
-  html += '</tbody></table>';
-  document.getElementById('corpContent').innerHTML = html;
 }
 
 async function quitApp() {
