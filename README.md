@@ -25,23 +25,6 @@ git clone https://github.com/Vbxlab/bpo-dashboard.git
 cd bpo-dashboard
 ```
 
-### Compilation
-
-```bash
-cargo build --release
-```
-
-### Nettoyage après compilation (optionnel)
-
-Pour ne garder que le binaire final :
-
-```bash
-cp target/release/bpo-dashboard /tmp/bpo-dashboard-backup
-rm -rf target/
-mkdir -p target/release
-mv /tmp/bpo-dashboard-backup target/release/bpo-dashboard
-```
-
 ## Configuration
 
 ### Étape 1 : Créer une application EVE Online
