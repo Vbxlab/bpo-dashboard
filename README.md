@@ -31,8 +31,6 @@ cd bpo-dashboard
 cargo build --release
 ```
 
-Le binaire se trouve dans `target/release/bpo-dashboard`.
-
 ### Nettoyage après compilation (optionnel)
 
 Pour ne garder que le binaire final :
@@ -95,7 +93,7 @@ Tu obtiendras :
 ### Étape 3 : Lancer le dashboard
 
 ```bash
-BPO_CONFIG=./data/config.json ./target/release/bpo-dashboard
+./run_dashboard.sh
 ```
 
 Ouvre `http://localhost:8090` dans ton navigateur.
