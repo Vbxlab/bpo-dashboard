@@ -18,6 +18,13 @@ Dashboard web pour les BPO (Blueprint Originals) EVE Online.
 
 - Rust 1.70+ (edition 2024) pour compiler
 
+### Récupérer le code
+
+```bash
+git clone https://github.com/Vbxlab/bpo-dashboard.git
+cd bpo-dashboard
+```
+
 ### Compilation
 
 ```bash
